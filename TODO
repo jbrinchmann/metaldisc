@@ -1,0 +1,16 @@
+Create Galaxy model
+    Radial coords
+    Metallicity profile
+    Line ratios
+    Flux profile
+    SFR
+    Extinction
+    Inclination
+    Position Angle
+
+Create MUSE simulator
+    PSF
+    Pixels
+    Binning
+
+Add fitter
