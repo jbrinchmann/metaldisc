@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 from numpy import testing as npt
 
-from galaxy import Galaxy
+from galaxy import *
 
 class TestGalaxy(unittest.TestCase):
 
@@ -42,19 +42,32 @@ class TestGalaxy(unittest.TestCase):
         with self.assertRaises(ValueError):
             galaxy = Galaxy(1., xy_sampling=2., xy_max=1.)
         
-        galaxy = Galaxy(1., xy_sampling=0.5, xy_max=1.5)
+        galaxy = Galaxy(1., xy_sampling=0.1, xy_max=0.2)
 
-        expect = np.array([[-0.5, 0., 0.5],
-                           [-0.5, 0., 0.5],
-                           [-0.5, 0., 0.5]])
-        npt.assert_array_equal(galaxy.x_grid, expect)
+        expect_x = np.array([[-0.1, 0., 0.1],
+                             [-0.1, 0., 0.1],
+                             [-0.1, 0., 0.1]])
 
-        expect = np.array([[0.5, 0.5, 0.5],
-                           [0., 0., 0.],
-                           [-0.5, -0.5, -0.5]])
-        npt.assert_array_equal(galaxy.y_grid, expect)
+        expect_y = np.array([[-0.1, -0.1, -0.1],
+                             [0., 0., 0.],
+                             [0.1, 0.1, 0.1]])
 
+        npt.assert_array_equal(galaxy.x_grid, expect_x)
+        npt.assert_array_equal(galaxy.y_grid, expect_y)
+        
+    def test_create_xy_grid(self):
+        expect_x = np.array([[-0.5, 0., 0.5],
+                             [-0.5, 0., 0.5],
+                             [-0.5, 0., 0.5]])
 
+        expect_y = np.array([[-0.3, -0.3, -0.3],
+                             [0., 0., 0.],
+                             [0.3, 0.3, 0.3]])
+
+        out_x, out_y = create_xy_grid(0.5, 0.3, 1., 0.5)
+
+        npt.assert_array_equal(out_x, expect_x)
+        npt.assert_array_equal(out_y, expect_y)
 
 
 
