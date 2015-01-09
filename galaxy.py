@@ -1,4 +1,8 @@
+import operator
+
 import numpy as np
+from cosmolopy import cd
+
 
 def create_xy_grid(x_sampling, y_sampling, x_max, y_max):
     """Creates regualarly sampled grid centred on (0, 0)
@@ -26,11 +30,8 @@ def create_xy_grid(x_sampling, y_sampling, x_max, y_max):
 
 class Galaxy(object):
     """Galaxy model producing undegraded 2D emission line maps"""
-    def __init__(self, z, xy_sampling=0.05, xy_max=10.):
+    def __init__(self, lines=None, xy_sampling=0.05, xy_max=10.):
         """Initialize galaxy
-
-        Args:
-            z (float): Redshift of galaxy
 
         Kwargs:
             xy_sampling (float): spatial sampling of model (arcsec)
@@ -40,12 +41,6 @@ class Galaxy(object):
             ValueError
         """
     
-        #Check redshift is positive
-        if z < 0.:
-            t = ("Illegal input: z (redshift) cannot be less than 0. "
-                 "Value given z={0:.3d}".format(z))
-            raise ValueError(t)
-
         #Check spatial sampling is positive
         if xy_sampling <= 0.:
             t = ("Illegal input: xy_sampling (spatial sampling) cannot be less "
@@ -63,13 +58,141 @@ class Galaxy(object):
            raise ValueError(t)
 
 
-        self.z = z
-        self.xy_sampling = xy_sampling
-        self.xy_max = xy_max
-
+        #create and store store spatial grids (arcsec)
         grids = create_xy_grid(xy_sampling, xy_sampling, xy_max, xy_max)
         self.x_grid = grids[0]
         self.y_grid = grids[1]
+        self.r_grid = np.sqrt(self.x_grid ** 2. + self.y_grid ** 2.)
+
+        self.pix_area = xy_sampling ** 2. #(arcsec^2)
+        
+        #store grid info (arcsec)
+        self.xy_sampling = xy_sampling
+        self.xy_max = xy_max
+        
+        self.SFR_map = self._exponential_disc_SFR
+        self.metallicity_map = self._linear_metallicity_profile
+        self.calc_line_flux = self._placeholder_calc_line_flux
+
+        self.cosmo = {'omega_M_0':0.3, 'omega_lambda_0':0.7, 'h':0.70}
+        self.cosmo = cd.set_omega_k_0(self.cosmo)
+    
+    def kpc_per_arcsec(self, z):
+        """Angular diameter distance in units of kpc per arcsec
+        
+        Args:
+            z - redshift
+        """
+        d_a = cd.angular_diameter_distance(z, **self.cosmo) #Mpc/rad
+        d_a *= 1e3 / (np.degrees(1.) * 3600.) #kpc/arcsec
+        return d_a
+
+    def luminosity_distance(self, z):
+        """Luminosity distance in units of cm
+        
+        Args:
+            z - redshift
+        """
+        D_L = cd.angular_diameter_distance(z, **self.cosmo) #Mpc
+        D_L *= 3.08567758e24 #cm
+        return D_L
+
+    def model(self, params):
+        """Produces emission line maps of galaxy"""
+
+        z = params['z'] # redshift
+        Sigma_SFR_centre = params['Sigma_SFR_centre']
+        r_s = params['r_s'] #
+        Z_in = params['Z_in'] # 
+        Z_out = params['Z_out'] #
+
+        SFR = self.SFR_map(z, Sigma_SFR_centre, r_s)
+        Z = self.metallicity_map(r_s, Z_in, Z_out)
+        
+
+        D_L = self.luminosity_distance(z)
+        lines = ['H_ALPHA']
+        for line in lines:
+            line_flux, line_var = self.calc_line_flux(Z, SFR, line)
+            line_flux /= (4. * np.pi * D_L ** 2.)
+            line_var /= (4. * np.pi * D_L ** 2.) ** 2.
+        
+        dt = [('x', float), ('y', float)]
+        for line in lines:
+            dt.append((line, float))
+            dt.append((line+'_VAR', float))
+        print dt
+        dt = np.dtype(dt)
+        
+        out = np.zeros(self.x_grid.size, dtype=dt)
+        out['x'] = self.x_grid.ravel()
+        out['y'] = self.y_grid.ravel()
+        out['H_ALPHA'] = line_flux.ravel()
+        out['H_ALPHA_VAR'] = line_var.ravel()
+
+        #ADD INCLINATION AND PA effects
+
+        return out
+
+     
+    def incline(self, angle):
+        return new_x, new_y
+
+    def rotate(self, angle):
+        return new_x, new_y
+
+    def _exponential_disc_SFR(self, z, Sigma_SFR_centre, r_s):
+        """Exponential SFR profile
+        Args:
+            z - redshift
+            Sigma_SFR_centre - SFR density at galaxy centre (M_sol/yr/kpc^2)
+            r_s - scale radius of disc (arcsec)
+        """
+        pix_area_kpc = self.pix_area * self.kpc_per_arcsec(z) ** 2.
+        norm = Sigma_SFR_centre * pix_area_kpc
+        profile = np.exp(-self.r_grid / r_s) #exp profile
+
+        return norm * profile # M_sol/yr
+
+    def _linear_metallicity_profile(self, r_s, Z_in, Z_out):
+        """Linear Metallicity_Profile
+        Args:
+            r_s - scale radius of disc (arcsec)
+            Z_in - metallicity at centre of galaxy (12 + log(O/H))
+            Z_out - metallicity at one scale radius from centre (12 + log(O/H))
+        """
+        Z = (Z_out - Z_in) * (self.r_grid / r_s) + Z_in
+        return Z
 
 
-#    def get_bin
+    def _placeholder_calc_line_flux(self, Z, SFR, line):
+        #SFR(Halpha) (M_sol/yr) = 7.9x10^-42 L(Halpha) (erg/s)
+        flux = SFR / 7.9e-42 #erg/s
+        var = np.zeros_like(flux)
+        return flux, var
+    
+    #return lines, wave, pixtable(x,y,flux1,err1,flux2,err2)
+
+
+#PARAMS
+#z - redshift
+#R_s - radial scale length of disc (arcsec)
+#SFR - central SFR
+#Z_in - central metallicity
+#Z_out - metallicity at scale length
+#inc - inclination
+#PA - PA of major axis
+
+
+#seeing - FWHM seeing at a wavelength
+#ra - ra center of galaxy
+#dec - dec center of galaxy
+
+if __name__ == '__main__':
+    gal = Galaxy()
+    params = {'z': 0.5,
+              'Sigma_SFR_centre': 0.1,
+              'r_s': 1.0,
+              'Z_in': 9.0,
+              'Z_out': 8.0,}
+    print np.sum(gal.model(params)['H_ALPHA'])
