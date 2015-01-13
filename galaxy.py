@@ -105,13 +105,15 @@ class Galaxy(object):
         r_s = params['r_s'] #
         Z_in = params['Z_in'] # 
         Z_out = params['Z_out'] #
+        inc = params['inc'] #
+        pa = params['PA'] #
 
         SFR = self.SFR_map(z, Sigma_SFR_centre, r_s)
         Z = self.metallicity_map(r_s, Z_in, Z_out)
-        
+       
 
         D_L = self.luminosity_distance(z)
-        lines = ['H_ALPHA']
+        lines = ['H_ALPHA', 'H_BETA']
         for line in lines:
             line_flux, line_var = self.calc_line_flux(Z, SFR, line)
             line_flux /= (4. * np.pi * D_L ** 2.)
@@ -121,28 +123,39 @@ class Galaxy(object):
         for line in lines:
             dt.append((line, float))
             dt.append((line+'_VAR', float))
-        print dt
         dt = np.dtype(dt)
-        
-        out = np.zeros(self.x_grid.size, dtype=dt)
-        out['x'] = self.x_grid.ravel()
-        out['y'] = self.y_grid.ravel()
-        out['H_ALPHA'] = line_flux.ravel()
-        out['H_ALPHA_VAR'] = line_var.ravel()
 
-        #ADD INCLINATION AND PA effects
+        x, y = self.incline_rotate(self.x_grid, self.y_grid, inc, pa)
+        
+        mask = (SFR >= 1e-4).ravel()
+        out = np.zeros(mask.sum(), dtype=dt)
+        out['x'] = x.ravel()[mask]
+        out['y'] = y.ravel()[mask]
+        out['H_ALPHA'] = line_flux.ravel()[mask]
+        out['H_ALPHA_VAR'] = line_var.ravel()[mask]
 
         return out
 
      
-    def incline(self, angle):
+    @staticmethod
+    def incline_rotate(x, y, inc, pa):
+        inc = np.radians(inc)
+        pa = np.radians(pa)
+
+        rot_matrix = np.array([[np.cos(inc) * np.cos(pa), np.sin(pa)],
+                               [-np.cos(inc) * np.sin(pa), np.cos(pa)]])
+
+        coords = np.row_stack([x.ravel(), y.ravel()])
+        new_coords = np.dot(rot_matrix, coords)
+        new_x = new_coords[0].reshape(x.shape)
+        new_y = new_coords[1].reshape(y.shape)
+
         return new_x, new_y
 
-    def rotate(self, angle):
-        return new_x, new_y
 
     def _exponential_disc_SFR(self, z, Sigma_SFR_centre, r_s):
         """Exponential SFR profile
+
         Args:
             z - redshift
             Sigma_SFR_centre - SFR density at galaxy centre (M_sol/yr/kpc^2)
@@ -156,6 +169,7 @@ class Galaxy(object):
 
     def _linear_metallicity_profile(self, r_s, Z_in, Z_out):
         """Linear Metallicity_Profile
+
         Args:
             r_s - scale radius of disc (arcsec)
             Z_in - metallicity at centre of galaxy (12 + log(O/H))
@@ -168,13 +182,17 @@ class Galaxy(object):
     def _placeholder_calc_line_flux(self, Z, SFR, line):
         #SFR(Halpha) (M_sol/yr) = 7.9x10^-42 L(Halpha) (erg/s)
         flux = SFR / 7.9e-42 #erg/s
-        var = np.zeros_like(flux)
+        if line == 'H_BETA':
+            flux /= 2.7
+        var = flux / 10.
         return flux, var
     
     #return lines, wave, pixtable(x,y,flux1,err1,flux2,err2)
 
 
 #PARAMS
+#ra - ra center of galaxy
+#dec - dec center of galaxy
 #z - redshift
 #R_s - radial scale length of disc (arcsec)
 #SFR - central SFR
@@ -185,14 +203,25 @@ class Galaxy(object):
 
 
 #seeing - FWHM seeing at a wavelength
-#ra - ra center of galaxy
-#dec - dec center of galaxy
 
 if __name__ == '__main__':
+    import matplotlib.pyplot as plt
+
     gal = Galaxy()
     params = {'z': 0.5,
               'Sigma_SFR_centre': 0.1,
               'r_s': 1.0,
+              'inc': 70.,
+              'PA': 10.0,
               'Z_in': 9.0,
               'Z_out': 8.0,}
-    print np.sum(gal.model(params)['H_ALPHA'])
+    out = gal.model(params)
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, aspect='equal')
+    s = ax.hexbin(out['x'], out['y'], C=np.log10(out['H_ALPHA']), cmap='RdYlBu_r')
+    plt.colorbar(s)
+
+    plt.show()
+
+
