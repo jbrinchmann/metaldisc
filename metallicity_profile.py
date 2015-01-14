@@ -1,18 +1,18 @@
-
 class MetallicityProfile(object):
-    
-    def params(self):
-        """
+    def required_params(self):
+        raise NotImplementedError
+    def __call__(self):
         raise NotImplementedError
 
+class LinearMetallicityProfile(MetallicityProfile):
 
-    def _linear_metallicity_profile(self, r_s, Z_in, Z_out):
-        """Linear Metallicity_Profile
+    def required_params(self):
+        params = ('r0', 'Z_in', 'Z_out')
+        return params
 
-        Args:
-            r_s - scale radius of disc (arcsec)
-            Z_in - metallicity at centre of galaxy (12 + log(O/H))
-            Z_out - metallicity at one scale radius from centre (12 + log(O/H))
-        """
-        Z = (Z_out - Z_in) * (self.r_grid / r_s) + Z_in
+    def __call__(self, r, params):
+        r0 = params['r0'])
+        Z_in = params['Z_in']
+        Z_out = params['Z_out']
+        Z = (Z_out - Z_in) * (r / r0) + Z_in
         return Z
