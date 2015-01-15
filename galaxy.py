@@ -30,7 +30,8 @@ def create_xy_grid(x_sampling, y_sampling, x_max, y_max):
 
 class Galaxy(object):
     """Galaxy model producing undegraded 2D emission line maps"""
-    def __init__(self, lines=None, xy_sampling=0.05, xy_max=10.):
+    def __init__(self, lines=[], metallicityProfile,
+                 xy_sampling=0.05, xy_max=10.):
         """Initialize galaxy
 
         Kwargs:
@@ -57,7 +58,6 @@ class Galaxy(object):
            t = ("Illegal input: xy_max should be greater than xy_sampling")
            raise ValueError(t)
 
-
         #create and store store spatial grids (arcsec)
         grids = create_xy_grid(xy_sampling, xy_sampling, xy_max, xy_max)
         self.x_grid = grids[0]
@@ -71,12 +71,15 @@ class Galaxy(object):
         self.xy_max = xy_max
         
         self.SFR_map = self._exponential_disc_SFR
-        self.metallicity_map = self._linear_metallicity_profile
+        self.metallicityProfile = self.metallicityProfile
         self.calc_line_flux = self._placeholder_calc_line_flux
 
         self.cosmo = {'omega_M_0':0.3, 'omega_lambda_0':0.7, 'h':0.70}
         self.cosmo = cd.set_omega_k_0(self.cosmo)
-    
+        
+        self.lineFlus(self, lines)
+
+
     def kpc_per_arcsec(self, z):
         """Angular diameter distance in units of kpc per arcsec
         
