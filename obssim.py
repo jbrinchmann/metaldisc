@@ -20,6 +20,8 @@ class ObsSim(object):
 
         new_coords = wcs.all_pix2sky(coords, 0)
         sky_x = new_coords[:,0]
+        sky_x -= np.round((sky_x - ra) / 360.) * 360.
+        print sky_x
         sky_y = new_coords[:,1]
 
         dist_x = (sky_x - ra) * np.cos(np.radians(dec)) * 3600.
@@ -34,7 +36,6 @@ class ObsSim(object):
 
         x = np.tile(np.arange(n_x, dtype=float), n_y).ravel()
         y = np.repeat(np.arange(n_y, dtype=float), n_x).ravel()
-        
 
         x, y = self._dist_from(wcs, x, y, ra, dec)
         centres = np.column_stack([x, y])
@@ -70,7 +71,7 @@ class ObsSim(object):
     def moffat(r, a, b):
         return (b-1.) / (np.pi*a**2.) / (1. + (r/a)**2.)**b
 
-    def model(self, data):
+    def model(self, data, lines):
         a = 0.6
         b = 2.6
 
@@ -84,27 +85,38 @@ class ObsSim(object):
             dx = data['x'] - self.grid_centre[mask,0][:,None]
             dy = data['y'] - self.grid_centre[mask,1][:,None]
             r = np.sqrt(dx**2. + dy**2.)
-            frac = self.moffat(r, a, b)
-            bins[mask] = np.sum(frac * data['H_ALPHA'])
+
+            for line in lines:
+                frac = self.moffat(r, a, b)
+                bins[mask] = np.sum(frac * data[line['name']+'_flux'])
         return bins
         
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
     import galaxy
+    from sfr_profile import ExponentialSFRProfile
+    from metallicity_profile import LinearMetallicityProfile
+    from line_flux import PlaceholderLineFlux
 
-    gal = galaxy.Galaxy()
+    lines = ['OII_3726', 'OII_3729', 'H_delta', 'H_gamma', 'H_beta',
+             'OIII_4959', 'OIII_5007']
+
+    gal = galaxy.Galaxy(ExponentialSFRProfile, LinearMetallicityProfile,
+                        PlaceholderLineFlux, lines=lines)
+    
     params = {'z': 0.5,
-              'Sigma_SFR_centre': 0.1,
-              'r_s': 1.0,
+              'SFRDensity_centre': 0.1,
+              'SFRDensity_thres': 1e-4,
+              'r0': 1.0,
               'inc': 40.,
               'PA': 30.0,
               'Z_in': 9.0,
               'Z_out': 8.0,}
-    data = gal.model(params)
+    data, lines = gal.model(params)
 
-    obsSim = ObsSim(180., 0., 'test_binmap.fits')
-    im = obsSim.model(data)
+    obsSim = ObsSim(180., 0., 'test_binmap3.fits')
+    im = obsSim.model(data, lines)
     
     fig = plt.figure()
     ax = fig.add_subplot(111, aspect='equal')

@@ -26,13 +26,12 @@ class ExponentialSFRProfile(SFRProfile):
         SFR_thres = params['SFRDensity_thres']
         
         pix_area_kpc = self.galaxy.pix_area * self.galaxy.kpc_per_arcsec(z)**2.
-        norm = Sigma_SFR_centre * pix_area_kpc # M_sol/yr
+        norm = SFRDensity_centre * pix_area_kpc # M_sol/yr
         SFR = norm * np.exp(-self.galaxy.r / r0) # exp profile
         
         SFR_at_edge = norm * np.exp(-self.galaxy.xy_max / r0) # exp profile
         if SFR_at_edge >= SFR_thres:
-            warnings.warn("Galaxy truncated by grid and therefor not circular. "
-                          "Consider increasing xy_max, or SFRDensity_thres")
+            raise Exception("Galaxy truncated by grid and therefor not circular. Consider increasing xy_max, or SFRDensity_thres")
         
         SFR[SFR <= SFR_thres] = np.nan
 
