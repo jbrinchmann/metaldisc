@@ -2,6 +2,109 @@ import numpy as np
 from cosmolopy import cd
 
 
+def Galaxy(object):
+    def __init__(self, r_max, pa, inc, n_annuli):
+
+        self._r_max = r_max
+        self._pa = pa
+        self._inc = inc
+        self._n_annuli = n_annuli
+        self._set_bin_coords()
+    
+    #make auto update bins on parameter changes
+    @property
+    def r_max(self):
+        return self._r_max
+
+    @r_max.setter
+    def r_max(self, value):
+        self._r_max = value
+        self._set_bin_coords(self.r_max, self.pa, self.inc, self.n_annuli)
+
+    @property
+    def r_max(self):
+        return self._pa
+
+    @pa.setter
+    def pa(self, value):
+        self._pa = value
+        self._set_bin_coords(self.r_max, self.pa, self.inc, self.n_annuli)
+
+    @property
+    def inc(self):
+        return self._inc
+
+    @inc.setter
+    def inc(self, value):
+        self._inc = value
+        self._set_bin_coords(self.r_max, self.pa, self.inc, self.n_annuli)
+
+    @property
+    def n_annuli(self):
+        return self._n_annuli
+
+    @n_annuli.setter
+    def n_annuli(self, value):
+        self._n_annuli = value
+        self._set_bin_coords(self.r_max, self.pa, self.inc, self.n_annuli)
+
+    def _set_coords(self, r_max, pa, inc, n_annuli):   
+        x, y, radius, theta, r_in, r_out, d_theta \
+            = self.calc_bin_positions(r_max, n_annuli)
+
+        x, y = self.incline_rotate(x, y, inc, pa)
+        self.x = x
+        self.y = y
+        self.radius = radius
+        self.theta = theta
+        self.radius_inner = r_in
+        self.radius_outer = r_out
+        self.d_theta = d_theta
+
+    def calc_bin_positions(self, r_max, n_annuli):
+        # radius of annuli
+        r, dr = np.linspace(0., r_max, n_annuli, retstep=True dtype=float)
+
+        #calc inner and outer edges of annuli
+        r_in = r - dr / 2.
+        r_in[0] = 0.
+        r_out = r + dr / 2.
+        
+        
+        n = 6 * np.arange(n_annuli, dtype=int) # no. bins per annulus
+        n[0] = 1
+
+        R = np.repeat(r, n) # bin radii
+        N = np.repeat(r, n) # number of bins at radius
+        r_in = np.repeat(r_in, n)
+        r_out = np.repeat(r_out, n)
+        # bin number within annulus
+        I = np.concatenate([np.arange(i, dtype=float) for i in n])
+
+        d_theta = 2. * np.pi / N
+        theta = I * d_theta  #angle to bin
+
+        x = R * np.cos(theta)
+        y = R * np.sin(theta)
+
+        return x, y, R, theta, r_in, r_out, d_theta
+
+    @staticmethod
+    def incline_rotate(x, y, inc, pa):
+        inc = np.radians(inc)
+        pa = np.radians(pa)
+
+        rot_matrix = np.array([[np.cos(inc) * np.cos(pa), np.sin(pa)],
+                               [-np.cos(inc) * np.sin(pa), np.cos(pa)]])
+
+        coords = np.row_stack([x.ravel(), y.ravel()])
+        new_coords = np.dot(rot_matrix, coords)
+        new_x = new_coords[0].reshape(x.shape)
+        new_y = new_coords[1].reshape(y.shape)
+
+        return new_x, new_y
+
+
 def create_xy_grid(x_sampling, y_sampling, x_max, y_max):
     """Creates regualarly sampled grid centred on (0, 0)
 
@@ -26,7 +129,7 @@ def create_xy_grid(x_sampling, y_sampling, x_max, y_max):
     return x_grid, y_grid
 
 
-class Galaxy(object):
+class oldGalaxy(object):
     """Galaxy model producing undegraded 2D emission line maps"""
     def __init__(self, sfrProfile, metallicityProfile, lineFlux, lines=[],
                  xy_sampling=0.05, xy_max=10.):

@@ -9,7 +9,7 @@ r_0
 SFR_total
 metalicity profile
 
-Obssim (given FWHM, and z)
+Obssim (given RA, Dec, FWHM, and redshift)
 
 Obssim computes new matrix if PA, inc, max, and spacing are different
 
