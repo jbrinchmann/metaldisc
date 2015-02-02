@@ -1,5 +1,3 @@
-import operator
-
 import numpy as np
 from cosmolopy import cd
 
@@ -30,7 +28,8 @@ def create_xy_grid(x_sampling, y_sampling, x_max, y_max):
 
 class Galaxy(object):
     """Galaxy model producing undegraded 2D emission line maps"""
-    def __init__(self, lines=None, xy_sampling=0.05, xy_max=10.):
+    def __init__(self, sfrProfile, metallicityProfile, lineFlux, lines=[],
+                 xy_sampling=0.05, xy_max=10.):
         """Initialize galaxy
 
         Kwargs:
@@ -57,12 +56,15 @@ class Galaxy(object):
            t = ("Illegal input: xy_max should be greater than xy_sampling")
            raise ValueError(t)
 
-
         #create and store store spatial grids (arcsec)
         grids = create_xy_grid(xy_sampling, xy_sampling, xy_max, xy_max)
         self.x_grid = grids[0]
         self.y_grid = grids[1]
         self.r_grid = np.sqrt(self.x_grid ** 2. + self.y_grid ** 2.)
+
+        self.x = self.x_grid.ravel()
+        self.y = self.y_grid.ravel()
+        self.r = self.r_grid.ravel()
 
         self.pix_area = xy_sampling ** 2. #(arcsec^2)
         
@@ -70,13 +72,14 @@ class Galaxy(object):
         self.xy_sampling = xy_sampling
         self.xy_max = xy_max
         
-        self.SFR_map = self._exponential_disc_SFR
-        self.metallicity_map = self._linear_metallicity_profile
-        self.calc_line_flux = self._placeholder_calc_line_flux
+        self.sfrProfile = sfrProfile(self)
+        self.metallicityProfile = metallicityProfile(self)
+        self.lineFlux = lineFlux(self, lines)
 
         self.cosmo = {'omega_M_0':0.3, 'omega_lambda_0':0.7, 'h':0.70}
         self.cosmo = cd.set_omega_k_0(self.cosmo)
-    
+        
+
     def kpc_per_arcsec(self, z):
         """Angular diameter distance in units of kpc per arcsec
         
@@ -99,42 +102,27 @@ class Galaxy(object):
 
     def model(self, params):
         """Produces emission line maps of galaxy"""
-
-        z = params['z'] # redshift
-        Sigma_SFR_centre = params['Sigma_SFR_centre']
-        r_s = params['r_s'] #
-        Z_in = params['Z_in'] # 
-        Z_out = params['Z_out'] #
-        inc = params['inc'] #
-        pa = params['PA'] #
-
-        SFR = self.SFR_map(z, Sigma_SFR_centre, r_s)
-        Z = self.metallicity_map(r_s, Z_in, Z_out)
-       
-
-        D_L = self.luminosity_distance(z)
-        lines = ['H_ALPHA', 'H_BETA']
-        for line in lines:
-            line_flux, line_var = self.calc_line_flux(Z, SFR, line)
-            line_flux /= (4. * np.pi * D_L ** 2.)
-            line_var /= (4. * np.pi * D_L ** 2.) ** 2.
+        inc = params['inc'] 
+        pa = params['PA'] 
         
-        dt = [('x', float), ('y', float)]
-        for line in lines:
-            dt.append((line, float))
-            dt.append((line+'_VAR', float))
-        dt = np.dtype(dt)
-
-        x, y = self.incline_rotate(self.x_grid, self.y_grid, inc, pa)
+        SFR = self.sfrProfile(params)
+        Z = self.metallicityProfile(params)
         
-        mask = (SFR >= 1e-4).ravel()
-        out = np.zeros(mask.sum(), dtype=dt)
-        out['x'] = x.ravel()[mask]
-        out['y'] = y.ravel()[mask]
-        out['H_ALPHA'] = line_flux.ravel()[mask]
-        out['H_ALPHA_VAR'] = line_var.ravel()[mask]
+        mask = ~np.isnan(SFR)
+        SFR = SFR[mask]
+        Z = Z[mask]
+        lineflux, lines = self.lineFlux(SFR, Z, params)
 
-        return out
+        x, y = self.incline_rotate(self.x[mask], self.y[mask], inc, pa)
+
+        dt = np.dtype([('x', float), ('y', float)] + lineflux.dtype.descr)
+        out = np.zeros(x.size, dtype=dt)
+        out['x'] = x
+        out['y'] = y
+        for name, _ in lineflux.dtype.descr:
+            out[name] = lineflux[name]
+
+        return out, lines
 
      
     @staticmethod
