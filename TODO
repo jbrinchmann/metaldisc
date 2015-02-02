@@ -1,16 +1,18 @@
-Create Galaxy model
-    Radial coords
-    Metallicity profile
-    Line ratios
-    Flux profile
-    SFR
-    Extinction ?
-    Inclination
-    Position Angle
+Make one class for galaxy
+with exponential profile.
 
-Create MUSE simulator
-    PSF
-    Pixels
-    Binning
+Geomeometry parameteres *fixed* at init, PA, inc, max, spacing
+if changed update geometry - @property
 
-Add fitter
+Can vary: - sent to model(r_0, SFR_total, Z_in, Z_out)
+r_0
+SFR_total
+metalicity profile
+
+Obssim (given FWHM, and z)
+
+Obssim computes new matrix if PA, inc, max, and spacing are different
+
+Use circular binning, calc flux per bin
+
+
