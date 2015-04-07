@@ -6,6 +6,8 @@ from cosmolopy import cd
 class Galaxy(object):
     def __init__(self, z, cosmo, r_max, pa, inc, n_annuli, sf_density,
                  metallicity, lineflux):
+        self.__observers = []
+
         self.z = z
         self.cosmo = cosmo
 
@@ -20,8 +22,17 @@ class Galaxy(object):
         self.metallicity = metallicity
         self.lineflux = lineflux
 
+
 #        sf_density.galaxy = self
 #        metallicity.galaxy = self
+
+    def register_observer(self, observer):
+        self.__observers.append(observer)
+    
+    def notify_observers(self, *args, **kwargs):
+        for observer in self.__observers:
+            observer.notify(self, *args, **kwargs)
+ 
 
     @property
     def r_max(self):
@@ -56,6 +67,7 @@ class Galaxy(object):
         self.area = d_theta / 2. * (r_out ** 2. - r_in ** 2.)
 
         self.coordKDTree = cKDTree(self.coords)
+        self.notify_observers(bins_changed=True)
 
     def calc_bin_positions(self, r_max, n_annuli):
         # radius of annuli

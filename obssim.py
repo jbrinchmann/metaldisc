@@ -8,7 +8,10 @@ from scipy import spatial
 
 class ObsSim(object):
         
-    def __init__(self, ra, dec, segmap, seeing):
+    def __init__(self, galaxy, ra, dec, segmap, seeing):
+        self.galaxy = galaxy
+        galaxy.register_observer(self)
+
         self.seeing = seeing
         
         self.segmap, hdr = pyfits.getdata(segmap, header=True)
@@ -27,6 +30,12 @@ class ObsSim(object):
         self.bin_area = self.grid_area[mask]
 
         self.coords = spatial.cKDTree(self.bin_centre)
+
+ 
+    def notify(self, observable, *args, **kwargs):
+        if bins_changed:
+            self.calc_dist_matrix()
+
 
     @staticmethod
     def _dist_from(wcs, pix_x, pix_y, ra, dec):
@@ -81,10 +90,10 @@ class ObsSim(object):
         return area
    
 
-    def model(self, galaxy):
-        data = galaxy.model()
+    def model(self):
+        data = self.galaxy.model()
 
-
+        #construct map from bins to sample points - do this once
         uniq_bin_id = np.unique(self.bin_id)
         n_bins = len(uniq_bin_id)
         n_pixels = len(self.bin_id)
@@ -94,6 +103,8 @@ class ObsSim(object):
             area_mapper[i][mask] = self.bin_area[mask]
 
         area_mapper = sparse.csr_matrix(area_mapper)
+        
+        #calc dist from galaxy coords to 
 
         dist = self.coords.sparse_distance_matrix(galaxy.coordKDTree, 3.)
         seeing_blur = dist.tocsr()
@@ -148,8 +159,8 @@ if __name__ == '__main__':
     beta = np.array([2.6, 2.6, 2.6])
     moffat = MoffatSeeing(wave, fwhm, beta)
 
-    obsSim = ObsSim(338.2239, -60.560436, '/data2/MUSE/metallicity_analysis/flux_extraction/spectra_extraction/binmap5.fits', moffat)
-    im, bin_flux = obsSim.model(galaxy)
+    obsSim = ObsSim(galaxy, 338.2239, -60.560436, '/data2/MUSE/metallicity_analysis/flux_extraction/spectra_extraction/binmap1.fits', moffat)
+    im, bin_flux = obsSim.model()
     print bin_flux.sum()
     print im.sum()
 
