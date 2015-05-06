@@ -1,8 +1,6 @@
 import numpy as np
 from scipy.spatial import cKDTree
 
-from cosmolopy import cd
-
 class Galaxy(object):
     def __init__(self, z, cosmo, r_max, pa, inc, n_annuli, sf_density,
                  metallicity, lineflux):
@@ -116,7 +114,7 @@ class Galaxy(object):
 
     def luminosity_distance(self, z):
         """Luminosity distance in units of cm"""
-        d_lum = cd.angular_diameter_distance(self.z, **self.cosmo) #Mpc
+        d_lum = self.cosmo.luminosity_distance(self.z) #Mpc
         d_lum *= 3.08567758e24 #cm
         return d_lum
 
@@ -177,15 +175,15 @@ if __name__ == '__main__':
     from metallicity import LinearMetallicity
     from lineflux import EmpiricalLineFlux
 
+    from astropy.cosmology import FlatLambdaCDM
+
     sf_density = ExpDisc(1., 1.)
     metallicity = LinearMetallicity(1, 8.5, 8.0)
     filename = '/data2/MUSE/metallicity_calibration/flux_cal_singlevar.h5'
     lineflux = EmpiricalLineFlux(filename, ['H_ALPHA', 'H_BETA'],
                                  ['6562.', 4861.])
 
-    cosmo = {'omega_M_0' : 0.3, 'omega_lambda_0' : 0.7, 'h' : 0.7}
-    cosmo = cd.set_omega_k_0(cosmo)
-    print cosmo
+    cosmo = FlatLambdaCDM(H0=70., Om0=0.3)
 
     galaxy = Galaxy(0.5, cosmo, 1., 10., 60., 45, sf_density, metallicity,
                     lineflux)

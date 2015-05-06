@@ -30,11 +30,14 @@ class ObsSim(object):
         self.bin_area = self.grid_area[mask]
 
         self.coords = spatial.cKDTree(self.bin_centre)
+        self.create_bins_to_samples_area_map()
+        self.calc_samples_to_points_dist()
 
+        self.redist = {}
  
     def notify(self, observable, *args, **kwargs):
         if bins_changed:
-            self.calc_dist_matrix()
+            self.calc_samples_to_points_dist()
 
 
     @staticmethod
@@ -88,11 +91,8 @@ class ObsSim(object):
         BD = corners[:,:,2,:] - corners[:,:,1,:]
         area = 0.5 * np.abs(AC[:,:,0] * BD[:,:,1] - BD[:,:,0] * AC[:,:,1])
         return area
-   
 
-    def model(self):
-        data = self.galaxy.model()
-
+    def create_bins_to_samples_area_map(self):
         #construct map from bins to sample points - do this once
         uniq_bin_id = np.unique(self.bin_id)
         n_bins = len(uniq_bin_id)
@@ -100,38 +100,50 @@ class ObsSim(object):
         area_mapper = np.zeros((n_bins, n_pixels), dtype=float)
         for i, id_ in enumerate(uniq_bin_id):
             mask = (self.bin_id == id_)
-            area_mapper[i][mask] = self.bin_area[mask]
+            area_mapper[i][mask] = self.bin_area[mask] / np.sum(mask)
 
-        area_mapper = sparse.csr_matrix(area_mapper)
-        
-        #calc dist from galaxy coords to 
+        self.area_mapper = sparse.csr_matrix(area_mapper)
 
+    def calc_samples_to_points_dist(self):
+        #calc dist from sample cooords to galaxy coords (less that 3")
         dist = self.coords.sparse_distance_matrix(galaxy.coordKDTree, 3.)
-        seeing_blur = dist.tocsr()
-        seeing_blur.data[:] = self.seeing(seeing_blur.data, 7000.)
+        self.dist_matrix = dist.tocsr()
+   
 
-        redist = area_mapper * seeing_blur
+    def model(self):
+        data = self.galaxy.model()
 
-        bin_flux = redist.dot(data['flux'][1])
-        
-        bins = np.zeros_like(self.segmap, dtype=float)
-        for i, id_ in enumerate(uniq_bin_id):
-            mask = (self.segmap == id_)
-            bins[mask] = bin_flux[i]
-#        seg_ids = np.unique(self.segmap)
-#        for seg_id in seg_ids:
-#            print seg_id
-#            if seg_id <= 0:
-#                continue
-#            mask = (self.segmap == seg_id)
-#            dx = data['x'] - self.grid_centre[mask,0][:,None]
-#            dy = data['y'] - self.grid_centre[mask,1][:,None]
-#            r = np.sqrt(dx**2. + dy**2.)
-#
-#            for line in lines:
-#                frac = self.moffat(r, a, b)
-#                bins[mask] = np.sum(frac * data[line['name']+'_flux'])
-        return bins, bin_flux
+        uniq_bin_id = np.unique(self.bin_id)
+        out_dt = np.dtype(data.dtype.descr[0:2] + 
+                          [('flux', float, uniq_bin_id.size),
+                           ('var', float, uniq_bin_id.size)])
+        out = np.zeros(len(data), dtype=out_dt)
+
+        for i in xrange(len(data)):
+            line = data[i]['line']
+            wave = data[i]['wave']
+
+            out['line'][i] = line
+            out['wave'][i] = wave
+
+            try:
+                redist_flux, redist_var = self.redist[line]
+
+            except KeyError:
+                seeing_redist = self.dist_matrix.copy()
+
+                seeing_redist.data[:] = self.seeing(seeing_redist.data, wave)
+                redist_flux = self.area_mapper * seeing_redist
+
+                redist_var = redist_flux.copy()
+                redist_var.data[:] = redist_var.data[:] ** 2.
+
+                self.redist[line] = (redist_flux, redist_var)
+
+            out['flux'][i] = redist_flux.dot(data[i]['flux'])
+            out['var'][i] = redist_var.dot(data[i]['var'])
+
+        return out
         
 
 if __name__ == '__main__':
@@ -143,13 +155,15 @@ if __name__ == '__main__':
     from lineflux import EmpiricalLineFlux
     from seeing import MoffatSeeing
 
+    from astropy.cosmology import FlatLambdaCDM
+
     sf_density = ExpDisc(.1, 0.1)
     metallicity = LinearMetallicity(1, 8.5, 8.5)
     filename = '/data2/MUSE/metallicity_calibration/flux_cal_singlevar.h5'
-    lineflux = EmpiricalLineFlux(filename, ['OIII_5007', 'H_BETA'],
-                                 ['5007.', 4861.])
+    lineflux = EmpiricalLineFlux(filename, ['OIII_5007', 'H_BETA', 'OII'],
+                                 ['5007.', 4861., '3727.'])
 
-    cosmo = {'omega_M_0':0.3, 'omega_lambda_0':0.7, 'omega_k_0': 0.0, 'h':0.7}
+    cosmo = FlatLambdaCDM(H0=70., Om0=0.3)
 
     galaxy = Galaxy(0.564497, cosmo, 0.78042, 76.6-90., 18.94, 45,
                     sf_density, metallicity, lineflux)
@@ -160,9 +174,8 @@ if __name__ == '__main__':
     moffat = MoffatSeeing(wave, fwhm, beta)
 
     obsSim = ObsSim(galaxy, 338.2239, -60.560436, '/data2/MUSE/metallicity_analysis/flux_extraction/spectra_extraction/binmap1.fits', moffat)
-    im, bin_flux = obsSim.model()
-    print bin_flux.sum()
-    print im.sum()
+    print obsSim.model()
+
 
     plt.imshow(im, interpolation='nearest', origin='lower')
     plt.colorbar()
