@@ -3,7 +3,7 @@ from scipy.spatial import cKDTree
 
 class Galaxy(object):
     def __init__(self, z, cosmo, r_max, pa, inc, n_annuli, sf_density,
-                 metallicity, lineflux):
+                 metallicity, lineflux, extinction):
         self.__observers = []
 
         self.z = z
@@ -19,6 +19,7 @@ class Galaxy(object):
         self.sf_density = sf_density
         self.metallicity = metallicity
         self.lineflux = lineflux
+        self.extinction = extinction
 
 
 #        sf_density.galaxy = self
@@ -124,9 +125,14 @@ class Galaxy(object):
 
         metal = self.metallicity(self.radius)
         np.clip(metal, 7.5, 9.5, out=metal)
-        print "CLIPPING METALLICITY"
 
         lines = self.lineflux(sfr, metal)
+
+        tauV = self.extinction(self.radius)
+        ext = np.exp(-tauV * (lines['wave'][:,None]/5500.) ** -1.3)
+        np.clip(ext, 0., 1., out=ext)
+        lines['flux'] *= ext
+        lines['var'] *= ext ** 2.
 
         lines['wave'] *= (1. + self.z)
 
@@ -135,6 +141,8 @@ class Galaxy(object):
         lines['flux'] /= norm
         lines['var'] /= norm ** 2
         
+
+
         return lines
 
 #coords class
