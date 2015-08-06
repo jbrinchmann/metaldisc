@@ -106,7 +106,7 @@ class ObsSim(object):
 
     def calc_samples_to_points_dist(self):
         #calc dist from sample cooords to galaxy coords (less that 3")
-        dist = self.coords.sparse_distance_matrix(galaxy.coordKDTree, 3.)
+        dist = self.coords.sparse_distance_matrix(self.galaxy.coordKDTree, 3.)
         self.dist_matrix = dist.tocsr()
    
 
@@ -153,29 +153,34 @@ if __name__ == '__main__':
     from SFdensity import ExpDisc
     from metallicity import LinearMetallicity
     from lineflux import EmpiricalLineFlux
+    from extinction import LinearExtinction
     from seeing import MoffatSeeing
 
     from astropy.cosmology import FlatLambdaCDM
 
-    sf_density = ExpDisc(.1, 0.1)
+    sf_density = ExpDisc(.1, 1)
     metallicity = LinearMetallicity(1, 8.5, 8.5)
+    extinction = LinearExtinction(1., 1.0, 1.0)
     filename = '/data2/MUSE/metallicity_calibration/flux_cal_singlevar.h5'
     lineflux = EmpiricalLineFlux(filename, ['OIII_5007', 'H_BETA', 'OII'],
                                  ['5007.', 4861., '3727.'])
 
     cosmo = FlatLambdaCDM(H0=70., Om0=0.3)
 
-    galaxy = Galaxy(0.564497, cosmo, 0.78042, 76.6-90., 18.94, 45,
-                    sf_density, metallicity, lineflux)
+    galaxy = Galaxy(0.427548, cosmo, 2., 25.+90., 90., 25,
+                    sf_density, metallicity, lineflux, extinction)
 
     wave = np.array([4750., 7000., 9300.])
     fwhm = np.array([0.76, 0.66, 0.61])
     beta = np.array([2.6, 2.6, 2.6])
     moffat = MoffatSeeing(wave, fwhm, beta)
 
-    obsSim = ObsSim(galaxy, 338.2239, -60.560436, '/data2/MUSE/metallicity_analysis/flux_extraction/spectra_extraction/binmap1.fits', moffat)
-    print obsSim.model()
-
+    obsSim = ObsSim(galaxy, 338.24124, -60.563644,
+                    '/data2/MUSE/metallicity_analysis/spectra_extraction/0020/binmap-image.fits',
+                    moffat)
+    a = obsSim.model()['flux']
+    print a[0].shape
+    im = a[0].reshape([30,29])
 
     plt.imshow(im, interpolation='nearest', origin='lower')
     plt.colorbar()
