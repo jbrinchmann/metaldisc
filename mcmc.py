@@ -1,5 +1,6 @@
 import json
 import numpy as np
+from scipy.special import gammaln
 import pymultinest
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
@@ -15,38 +16,38 @@ class MCMC(object):
         
     def prior(self, cube, ndim, nparams):
         cube[0] = 10.**(4. * cube[0] - 2.) #SFR log 0.01 - 100
+#        cube[0] = 40. * cube[0] #SFR lin 0 - 40
         cube[1] = 4. * cube[1] + 0. #r_d lin 0 - 4
-        cube[2] = 2. * cube[2] + 7.5 #Z_in lin 7.9 - 9.3
-        cube[3] = 2. * cube[3] + 7.5 #Z_out lin 7.9 - 9.3
-        cube[5] = 10.**(2.602059991 * cube[4] + -2.) #tauV_in log 0.01-4
-        cube[6] = 10.**(2.602059991 * cube[5] + -2.) #tauV_out log 0.01-4
+        cube[2] = 2. * cube[2] + 7.5 #Z_in lin 7.5 - 9.5
+        cube[3] = 2. * cube[3] + 7.5 #Z_out lin 7.5 - 9.5
+#        cube[4] = 10.**(2.602059991 * cube[4] + -2.) #tauV_in log 0.01-4
+#        cube[5] = 10.**(2.602059991 * cube[5] + -2.) #tauV_out log 0.01-4
+        cube[4] = 3.99 * cube[4] + 0.01 #tauV_in lin 0.01 - 4
+        cube[5] = 3.99 * cube[5] + 0.01 #tauV_out lin 0.01 - 4
+        cube[6] = 2. * cube[6] + -4. # logU_Zsolar
 
     def loglike(self, cube, ndim, nparams):
 
-        self.galaxy.sf_density.total_SFR = cube[0]
-        self.galaxy.sf_density.r_d = cube[1]
-        self.galaxy.metallicity.r_d = cube[1]
-        self.galaxy.extinction.r_d = cube[1]
-        self.galaxy.metallicity.Z_in = cube[2]
-        self.galaxy.metallicity.Z_out = cube[3]
-        self.galaxy.extinction.tauV_in = cube[4]
-        self.galaxy.extinction.tauV_out = cube[5]
-
-
-        model = self.obsSim.model()
-        model['flux'] *= 1e20
-        model['var'] *= 1e40
-
+        model = self.model(cube)
 
         res = self.data['flux'] - model['flux']
         var = self.data['var'] + model['var']
-    
-        norm = 1. / (2.*np.pi*var) ** 0.5
-        likelihood = norm * np.exp(-0.5 * res**2. / var)
+#gaussian log-like
+#        n = res.size
+#        out = -n / 2. * np.log(2.*np.pi)
+#        out -= np.log(var).sum() / 2.
+#        out -= 1. / 2. * ((res**2.) / var).sum()
 
-        return np.log(likelihood).sum()
+#student-t log-like
+        nu = 5.
+        scale_sqd = (nu-2.) * var / nu
+        out = (gammaln((nu+1.)/2.) - gammaln(nu/2.)) * np.ones_like(var, dtype=float)
+        out -= 0.5 * np.log(np.pi * nu * scale_sqd)
+        out -= (nu+1.)/2. * np.log(1. + 1./nu * res**2. / scale_sqd)
+        out = out.sum()
+        return out
 
-    def plot(self, cube):
+    def model(self, cube):
         self.galaxy.sf_density.total_SFR = cube[0]
         self.galaxy.sf_density.r_d = cube[1]
         self.galaxy.metallicity.r_d = cube[1]
@@ -55,15 +56,19 @@ class MCMC(object):
         self.galaxy.metallicity.Z_out = cube[3]
         self.galaxy.extinction.tauV_in = cube[4]
         self.galaxy.extinction.tauV_out = cube[5]
+        self.galaxy.logU_Zsolar = cube[6]
 
         model = self.obsSim.model()
         model['flux'] *= 1e20
         model['var'] *= 1e40
+        return model
 
+    def plot(self, cube):
+        model = self.model(cube)
 
         n_x = int(np.ceil(len(self.data)/2.))
 
-        fig = plt.figure(figsize=(2.5*n_x,4.), tight_layout=True)
+        fig = plt.figure(figsize=(3.*n_x,8.), tight_layout=True)
         gs = gridspec.GridSpec(n_x,2)
 
         for i in xrange(len(self.data)):
@@ -72,38 +77,24 @@ class MCMC(object):
             line_model = model[i]
             x = np.arange(len(line_obs['flux'])) + 1
             ax.errorbar(x, line_obs['flux'], yerr=np.sqrt(line_obs['var']),
-                        color='k', capsize=0, ls='', marker='o', label='Data')
+                        color='k', capsize=0, ls='', marker='o')
             ax.errorbar(x, line_model['flux'], yerr=np.sqrt(line_model['var']),
-                        color='r', capsize=0, ls='', marker='o', label='Model')
-            plot_name = {'OII':r'$\left[\textrm{O}\textsc{ii}\right]$',
-                         'OIII_5007':r'$\left[\textrm{O}\textsc{iii}\right]$',
-                         'H_BETA':r'$\textrm{H}_\beta$',
-                         'H_GAMMA':r'$\textrm{H}_\gamma$'}
-            plot_name = plot_name[line_obs['name']]
-            ax.text(0.15, 0.1, plot_name, va='bottom', ha='left',
-                    transform=ax.transAxes, fontsize=18)
-#            ax.set_title(line_obs['name'])
-            if i in [2,3]:
-                ax.set_xlabel('Annular bin')
-            if i in [0,2]:
-                ax.set_ylabel(r'$\textrm{Flux} \left[10^{-20} \textrm{erg}/\textrm{s}/\textrm{cm}^2\right]')
-            
-            if i == 0:
-                ax.legend()
+                        color='r', capsize=0, ls='', marker='o')
+            ax.set_title(line_obs['name'])
         
             ax.set_xlim([0, None])
-        return fig,  model
-
+        return fig
 
 
     def run(self, outputfiles_basename):
-        parameters = ["totalSFR", "r_d", "Z_in", 'Z_out', 'tauV_in', 'tauV_out']
+        parameters = ["totalSFR", "r_d", "Z_in", 'Z_out', "tauV_in", "tauV_out",                      "logU_Zsolar"]
         n_params = len(parameters)
 
         pymultinest.run(self.loglike, self.prior, n_params,
                         outputfiles_basename=outputfiles_basename,
-                        resume=False, verbose=True, n_live_points=600,
-                        sampling_efficiency='parameter')
+                        importance_nested_sampling=False, multimodal=True,
+                        resume=False, verbose=True, n_live_points=1000,
+                        sampling_efficiency=0.5)#'parameter')
         json.dump(parameters, open(outputfiles_basename+'params.json', 'w')) # save parameter names
 
 
