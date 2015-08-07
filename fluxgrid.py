@@ -24,6 +24,15 @@ class BaseFluxGrid(object):
     def logU_min(self):
         """Max logU value spanned by grid"""
        
+    def get_wave(self, line):
+        """Given line name return wavelength [Angstrom]"""
+        raise NotImplementedError("Subclasses should provide get_wave method")
+
+    def __call__(self, line, SFR, logZ, logU):
+        """Return flux and variances"""
+        raise NotImplementedError("Subclasses should provide __call__ method")
+
+
 class CL01LineFlux(object):
     def __init__(self, filename, lines=[], wave=[]):
     
