@@ -1,28 +1,120 @@
 import numpy as np
+
+
 from scipy.interpolate import RegularGridInterpolator
-from scipy.interpolate import interp1d
-import h5py
 
-class BaseFluxGrid(object):
+class FluxGrid(object):
 
+    def __init__(self, filename, lines, model_var):
+
+        self.lines = lines
+        self.model_var = model_var
+
+        fh = h5py.File(filename, 'r')
+
+        #construct interp tables
+        
+        #require dims in the order: logZ, logU, line[name][wave]
+        self.logZ_solar = fh['flux'].attrs['logZ_solar']
+        #attrs logZsolar
+        #wave
+
+        #Close open hdf5 resources
+        fh.flush()
+        fh.close()
+
+    @staticmethod
+    def get_dims(dset):
+        #read dims and labels
+
+    @staticmethod
+        if: dims[idx].label != label
+
+    @staticmethod
+    def _check_dimension_order(dset, labels)
+        """Check hdf5 dataset has expected dimensionallity
+        
+        Parameters
+        ----------
+        dset : h5py.Dataset
+            dataset to check
+        labels : list
+            list of dimension labels required
+
+        Raises
+        ------
+        Exception : if wrong number or dimensions or wrong dimension labels
+        
+        """
+
+        #check no. dimensions
+        if len(dset.dims) != len(labels):
+            msg = ("Dataset {name} has wrong number of dimensions.\n"
+                   "Has {n1} dimensions not {n2} dimensions.")
+            msg.format(name=dset.name, n1=len(dset.dims), n2=len(labels))
+            raise Exception(msg)
+
+        #check dimension names
+        for i_dim, expected_label in enumerate(dim_order):
+            if dset[i_dim].label != expected_label:
+                msg = ("Dataset {name} has wrong dimensions.\n"
+                       "Dim {i_dim} is labelled {l1} not {l2}.")
+                msg.format(name=dset.name, i_dim=i_dim, l1=dset[i_dim].label,
+                           l2=expected_lable)
+                raise Exception(msg)
+
+
+    def load_dataset(self, dset):
+
+        dim_order = ['logZ', 'logU', 'line']
+        self._check_dimension_order(dset, dim_order)
+        
+        # load scales
+        self.logZ = dset.dims[0][0] 
+        self.logU = dset.dims[1][0] 
+        line_name = dset.dims[2]['name']
+        line_wave = dset.dims[2]['wave']
+
+        wave = {}
+        fluxes = {}
+        for i_line, line in enumerate(self.lines):
+            idx = where((line_name == line)[0])
+            if idx.size == 0:
+                raise Exception('Line {0} not found'.format(line))
+            if idx.size >= 2:
+                raise Exception('Line {0} found more than once'.format(line))
+
+            wave[line] = line_wave[idx]
+
+            flux = dset[:,:,idx]
+            self.intep_flux = RegularGridInterpolator(
+                    dims, flux, method='linear'
+                    bounds_error=True)
+
+
+        # select only requested lines
+        line_mask = np.zeros(dt
+
+        
     @property
     def logZ_min(self):
         """Min logZ value spanned by grid [12+log10(O/H)]"""
-        raise NotImplementedError("Subclasses should provide logZ_min attribute")
+        return np.min(self.logZ)
 
     @property
     def logZ_max(self):
         """Max logZ value spanned by grid [12+log10(O/H)]"""
-        raise NotImplementedError("Subclasses should provide logZ_max attribute")
+        return np.max(self.logZ)
 
     @property
     def logU_min(self):
         """Min logU value spanned by grid"""
-        raise NotImplementedError("Subclasses should provide logU_min attribute")
+        return np.min(self.logU)
 
     @property
     def logU_min(self):
         """Max logU value spanned by grid"""
+        return np.max(self.logU)
        
     def get_wave(self, line):
         """Given line name return wavelength [Angstrom]"""
@@ -31,6 +123,9 @@ class BaseFluxGrid(object):
     def __call__(self, line, SFR, logZ, logU):
         """Return flux and variances"""
         raise NotImplementedError("Subclasses should provide __call__ method")
+
+
+
 
 
 class CL01LineFlux(object):
