@@ -7,17 +7,33 @@ class FluxGrid(object):
 
     def __init__(self, filename, lines, model_var):
 
-        self.lines = lines
-        self.model_var = model_var
 
         fh = h5py.File(filename, 'r')
 
-        #construct interp tables
+        #construct interp table
+        fluxes = self.load_data(fh['flux'], lines)
+
+        #use model variances or not, or used fix values
+        self.model_var = model_var
+        if model_var is True:
+            try:
+                dset = fh['var']
+            except KeyError:
+                raise Exception('var dataset not found')
+            self.interp_var = self.load_data(fh['var'], lines)
+        elif model_var is False:
+            self.var = 0.
+        elif np.is_numeric(model_var):
+            if model_var
+            False:
+        self.var = model_var
+
+        #wave
+        self.wave = self.load_wave(fh['flux'], lines)
         
         #require dims in the order: logZ, logU, line[name][wave]
         self.logZ_solar = fh['flux'].attrs['logZ_solar']
         #attrs logZsolar
-        #wave
 
         #Close open hdf5 resources
         fh.flush()
