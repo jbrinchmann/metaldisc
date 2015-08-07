@@ -3,6 +3,27 @@ from scipy.interpolate import RegularGridInterpolator
 from scipy.interpolate import interp1d
 import h5py
 
+class BaseFluxGrid(object):
+
+    @property
+    def logZ_min(self):
+        """Min logZ value spanned by grid [12+log10(O/H)]"""
+        raise NotImplementedError("Subclasses should provide logZ_min attribute")
+
+    @property
+    def logZ_max(self):
+        """Max logZ value spanned by grid [12+log10(O/H)]"""
+        raise NotImplementedError("Subclasses should provide logZ_max attribute")
+
+    @property
+    def logU_min(self):
+        """Min logU value spanned by grid"""
+        raise NotImplementedError("Subclasses should provide logU_min attribute")
+
+    @property
+    def logU_min(self):
+        """Max logU value spanned by grid"""
+       
 class CL01LineFlux(object):
     def __init__(self, filename, lines=[], wave=[]):
     
