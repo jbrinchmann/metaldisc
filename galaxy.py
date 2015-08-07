@@ -29,12 +29,6 @@ class BaseGalaxy(object):
 
         self.__observers = []
 
-        self.r_d = None # disc scale length
-        self.Z_in = None # inner metallicity
-        self.Z_out = None # metallicity at one disc scale length
-        self.tauV_in = None # inner extinction
-        self.tauV_out = None # extinction at one disc scale lenght
-        self.logU_Zsolar = None # logU at solar metallicity
 
     def register_observer(self, observer):
         """Record objects that create views of the model"""
@@ -326,7 +320,7 @@ class BaseGalaxy(object):
         #get metallicity and ionization parameter on bins
         logZ, logU = self.bin_logZ_logU(params)
 
-        #get SFR of bins
+        #gett SFR of bins
         SFR = self.bin_SFR(params)
 
         fluxes = np.zeros([len(self._bin_coords), len(lines)], dtype=float)
@@ -390,8 +384,6 @@ class GalaxyDisc(BaseGalaxy):
 
         self.geometry_changed = True #bins require updating
         self._update_bin_coords() #initialize geometry
-
-        self.SFRcentre = None, #central sfr
 
 
 # Make sure bin coords recomputed if following geometry parameters are changed
