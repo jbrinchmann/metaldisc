@@ -239,8 +239,8 @@ class BaseGalaxy(object):
 
         Parameters
         ----------
-        line : string
-            string identifing emission line
+        lines : list of strings
+            strings identifing emission line
         flux : array of floats
             emission line fluxes
         var : array of floats
@@ -258,7 +258,7 @@ class BaseGalaxy(object):
         """
 
         #get wavelength of emission line
-        wave = self.fluxgrid.get_wave(line)
+        wave = [self.fluxgrid.get_wave(l) for l in lines]
 
         #get tauV
         tauV = self._bin_tauV(params)
@@ -326,16 +326,13 @@ class BaseGalaxy(object):
         fluxes = np.zeros([len(self._bin_coords), len(lines)], dtype=float)
         vars_ = np.zeros_like(flux)
         
-        for i_line, line in enumerate(lines):
-            #get line flux
-            f, v = self.fluxgrid(line, SFR, logZ, logU)
-            #apply dust extinction
-            f, v = self.apply_bin_extinction(line, f, v, params)
-            #apply distance correction
-            f, v = self.scale_flux_for_distance(f, v)
+        #get line flux
+        fluxes, vars_ = self.fluxgrid(lines, SFR, logZ, logU)
+        #apply dust extinction
+        fluxes, vars_ = self.apply_bin_extinction(lines, fluxes, vars_, params)
 
-            fluxes[:,i_line] = f
-            vars_[:,i_line] = v
+        #apply distance correction
+        fluxes, vars_ = self.scale_flux_for_distance(fluxes, vars_)
 
         return fluxes, vars_
 
