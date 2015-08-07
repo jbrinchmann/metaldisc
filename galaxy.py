@@ -18,6 +18,8 @@ class BaseGalaxy(object):
             fluxgrid object specifying the line-ratio physics
 
         """
+        if (z < 0.):
+            raise Exception("Reshift must be greater than zero")
         self.z = z
         self.cosmo = cosmo
         self.fluxgrid = fluxgrid
@@ -69,6 +71,7 @@ class BaseGalaxy(object):
         """Array of galaxy sample bins areas [arcsec^2]"""
         raise NotImplementedError("Subclasses should provide bin_area attribute")
     
+
     #require subclasses to supply bin_coords and trigger updates as required
     @property
     def bin_coord(self):
@@ -89,6 +92,7 @@ class BaseGalaxy(object):
         self._bin_coord_tree = cKDTree(value) #construct cKDTree
         self.notify_observers(bins_changed=True) #trigger notification
 
+
     @property
     def bin_coord_tree(self):
         """Get scipy.cKDTree representation of bin_coord"""
@@ -97,18 +101,249 @@ class BaseGalaxy(object):
         else:
             return self._bin_coord_tree
 
-    def luminosity_distance(self, z):
-        """Luminosity distance in units of cm"""
-        d_lum = self.cosmo.luminosity_distance(self.z) #Mpc
-        d_lum *= 3.08567758e24 #cm
-        return d_lum
 
-    def metallicity(self):
-        return
+    def bin_SFR(self, params):
+        """Return SFR of galaxy bins [M_sun/yr]"""
+        raise NotImplementedError("Subclasses should provide bin_SFR method")
 
-    def extinction(self):
-        return
+
+    def _bin_logZ(self, params):
+        """Generates metallicity for each bin, given model parameters
+        
+        Produces an axisymmetric linear metallicity gradient.
+
+        Parameters
+        ----------
+        params : dict
+            Dictionary containing the following:
+            r_d : float
+                disc scale length
+            Z_in : float
+                metallicity at galaxy centre
+            Z_out : float
+                metallicity at one disc scale length
+
+        Returns
+        -------
+        logZ : array of floats
+            Oxygen abundance of each bin [12 + log10(O/H)]
+        
+        """
+
+        try:
+            r_d = params['r_d']
+            Z_in = params['Z_in']
+            Z_out = params['Z_out']
+        except KeyError, e:
+            print "Parameter '{0}' not found".format(e.message)
+            raise
+
+        logZ = (Z_out-Z_in) * (self.radius/r_d) + Z_in
+        return logZ
+
+
+    def _bin_logU(self, logZ, params):
+        """Generates ionization parameter for each bin, given model parameters
+        
+        Produces the ionization parameter, adopting an anti-correlation between
+        metallicity and ionization parameter
+
+        Parameters
+        ----------
+        logZ : array of floats
+            metallicity of each bin
+        params : dict
+            Dictionary containing the following:
+            logU_0 : float
+                ionization paramter at solar metallicity
+
+        Returns
+        -------
+        logU : array of floats
+            Dimensionless Ionization parameter of each bin
+        
+        """
+
+        try:
+            logU_0 = params['logU_0']
+        except KeyError, e:
+            print "Parameter '{0}' not found".format(e.message)
+            raise
+
+        logU = -0.8 * logZ + logU_0
+
+        return logU
+
+
+    def bin_logZ_logU(self, params):
+        """Generates metallicity and ionization parameter for each bin, 
+        given model parameters
+
+        Metallcity and ionization parameter are clipped between min and max
+        of flux grid
+
+        Parameters
+        ----------
+        params : dict
+            dictionary of model parameters
+        
+        Returns
+        -------
+        logZ : array of floats
+            Oxygen abundance of each bin [12 + log10(O/H)]
+        logU : array of floats
+            Dimensionless Ionization parameter of each bin
+        
+        """
+
+        logZ = self._bin_logZ(params)
+        logZ = np.clip(logZ, self.fluxgrid.logZ_min, self.fluxgrid.logZ_max)
+        logU = self._bin_logU(logZ, params)
+        logU = np.clip(logU, self.fluxgrid.logU_min, self.fluxgrid.logU_max)
+
+        return logZ, logU
+
+
+    def _bin_tauV(self, params):
+        """Generates dust attenuation tauV for each bin, given model parameters
+        
+        Produces an axisymmetric linear profile.
+
+        Parameters
+        ----------
+        params : dict
+            Dictionary containing the following:
+            r_d : float
+                disc scale length
+            tauV_in : float
+                V-band dust extinction at galaxy centre
+            tauV_out : float
+                V-band dust extinction at one disc scale length
+
+        Returns
+        -------
+        tauV : array of floats
+            Oxygen abundance of each bin [12 + log10(O/H)]
+        
+        """
+        try:
+            r_d = params['r_d']
+            tauV_in = params['tauV_in']
+            tauV_out = params['tauV_out']
+        except KeyError, e:
+            print "Parameter '{0}' not found".format(e.message)
+            raise
+
+        tauV = (tauV_out-tauV_in) * (self.radius/r_d) + tauV_in
+
+        return tauV
+
+
+    def apply_bin_extinction(self, line, flux, var, params)
+        """Add dust attenuation effects to fluxes and variances
+        
+
+        Parameters
+        ----------
+        line : string
+            string identifing emission line
+        flux : array of floats
+            emission line fluxes
+        var : array of floats
+            corresponding emission line variances
+        params : dict
+            dictionary of model parameters
+
+        Returns
+        -------
+        flux_ext : array of floats
+            array of fluxes with extinction applied
+        var_ext : array of floats
+            array of variances with extinction applied
+        
+        """
+
+        #get wavelength of emission line
+        wave = self.fluxgrid.get_wave(line)
+
+        #get tauV
+        tauV = self._bin_tauV(params)
+        tauV = np.clip(tauV, 0., None) # no negative values
+        
+        # Charlot and Fall 2000 model for HII regions   (slope=1.3)
+        ext = np.exp(-tauV * (wave/5500.)**-1.3)
+        ext = np.clip(ext, 0., 1.) # restrict effects to between 0 and 1
+
+        flux_ext = flux * ext
+        var_ext = var * ext**2.
+
+        return flux_ext, var_ext
+
+
+    def scale_flux_for_distance(self, flux, var):
+        """Accounts flux annuation for distance (reshift)
+        
+        Parameters
+        ----------
+        flux : array of floats
+            intrinic flux [erg/s]
+        var : array of floats
+            coresponding variance
+
+        Returns
+        -------
+        flux_attenu : array of floats
+            fluxes attenated fluxs  [erg/s/cm^2]
+        var_attenu : array of floats
+            coresponding variance
+        
+        """
+        d_lum = self.cosmo.luminosity_distance(self.z).cgs.value #cm
+        norm = 4.*np.pi * d_lum**2.
+        flux_attenu = flux / norm
+        var_attenu var / norm**2.
+        return flux_attenu, var_attenu
    
+
+    def __call__(self, lines, params):
+        """Calculate line fluxes and variances for a set of emission lines
+        
+        Parameters
+        ----------
+        lines : list of strings
+            names identifying emission lines
+        params : dict
+            dictionary of model parameters
+
+        Returns:
+        flux : array of floats, shape:(a,b)
+            emission line fluxes, a:#bins b:#lines [erg/s/cm^2]
+        var : array of floats, shape:(a,b)
+            corresponding variances
+
+        """
+
+        #get metallicity and ionization parameter on bins
+        logZ, logU = self.bin_logZ_logU(params)
+
+        #multiply SFR of bins
+        SFR = self.bin_SFR()
+
+        fluxes = np.zeros([len(self._bin_coords), len(lines)], dtype=float)
+        vars_ = np.zeros_like(flux)
+        
+        for i_line, line in enumerate(lines):
+            #get line flux
+            f, v = self.fluxgrid(line, SFR, logZ, logU)
+            #apply dust extinction
+            f, v = self.apply_bin_extinction(line, f, v, params)
+            #apply distance correction
+            f, v = self.scale_flux_for_distance(f, v)
+
+            fluxes[:,i_line] = f
+            vars_[:,i_line] = v
+
+        return fluxes, vars_
 
 
 
@@ -294,6 +529,13 @@ class GalaxyDisc(BaseGalaxy):
 
         # bin ID number within each annulus
         I = np.concatenate([np.arange(i, dtype=float) for i in n])
+#        #lines['flux'] *= ext
+#        d_lum = self.luminosity_distance(self.z)
+#        norm = 4. * np.pi * d_lum ** 2.
+#        lines['flux'] /= norm
+#        lines['var'] /= norm ** 2
+#
+#        return lines
 
         d_theta = 2. * np.pi / N
         theta = I * d_theta  #angle to bin
@@ -382,60 +624,49 @@ class GalaxyDisc(BaseGalaxy):
         else:
             return False
 
+
+    def bin_SFR(self, params):
+        """Calculate the SFR of galaxy bins
+
+        Produces an exponential SF disc
+
+        Parameters
+        ----------
+        params : dict
+            Dictionary containing the following:
+            SFdensity_0 : float
+                Central star formation density [M_sun/yr/kpc^2]
+            r_d : float
+                Disc scale length
+
+        Returns
+        -------
+        SFR : array of floats
+            SFR of bins [M_sun/yr]
+        """
+
+        try:
+            SFdensity_0 = params['SFdensity_0']
+            r_d = params['r_d']
+        except KeyError, e:
+            print "Parameter '{0}' not found".format(e.message)
+            raise
+
+
+        SFdensity = SFdensity_0 * np.exp(-self.radius/r_d)
+
+        kpc_per_arcsec = 1. / self.cosmo.arcsec_per_kpc_proper(self.z).value
+        area_kpc = self.bin_area * kpc_per_arcsec**2. # kpc^2
+
+        SFR = SFdensity * area_kpc # M_sun / yr
+
+        return SFR
     
-    def __call__(self, line, SFRcentre=None, r_d=None, Z_in=None,
-                 Z_out=None, tauV_in=None, tauV_out=None, logU_Zsolar=None):
-
-        self.SFRcentre = SFRcentre
-        self.r_d = r_d
-        self.Z_in = Z_in
-        self.Z_out = Z_out
-        self.tauV_in = tauV_in
-        self.tauV_out = tauV_out
-        self.logU_Zsolar = logU_Zsolar
-        
-        #get Z of bins
-        Z = self.metallicity()
-        #get logU of bins
-        logU = self.ionization_parameter()
-        #get line flux
-        self.fluxgrid(line, Z, logU)
-        #multiply SFR of bins
-        SFR = self.SFR()
-        #multiply tauV of bins
-        flux = self.extinction(line, flux, var)
-
-        return flux, var
 
 #    def model(self):
 #        sf_density = self.sf_density(self.radius, self.r_max)
 #        sfr = sf_density * self.area
 #
-#        metal = self.metallicity(self.radius)
-#        np.clip(metal, 7.5, 9.5, out=metal)
-#
-#        tauV = self.extinction(self.radius)
-#        lines = self.lineflux(sfr, metal, self.logU_Zsolar, tauV)
-#
-#        #ext = np.exp(-tauV * (lines['wave'][:,None]/5500.) ** -1.3)
-#        #np.clip(ext, 0., 1., out=ext)
-#        #lines['flux'] *= ext
-#        #lines['var'] *= ext ** 2.
-#
-#        tauV = self.extinction(self.radius)
-#        ext = np.exp(-tauV * (lines['wave'][:,None]/5500.) ** -1.3)
-#        np.clip(ext, 0., 1., out=ext)
-#        lines['flux'] *= ext
-#        lines['var'] *= ext ** 2.
-#
-#        lines['wave'] *= (1. + self.z)
-#
-#        d_lum = self.luminosity_distance(self.z)
-#        norm = 4. * np.pi * d_lum ** 2.
-#        lines['flux'] /= norm
-#        lines['var'] /= norm ** 2
-#
-#        return lines
 
 #coords class
 #    - update params simulatenously
