@@ -542,6 +542,8 @@ class GalaxyDisc(BaseGalaxy):
 
         x = radius * np.cos(theta)
         y = radius * np.sin(theta)
+        #multiply SFR of bins
+        SFR = self.bin_SFR()
 
         return x, y, radius, theta, r_in, r_out, d_theta
 
@@ -597,6 +599,8 @@ class GalaxyDisc(BaseGalaxy):
         flag : bool
             True if recomputation was performed. False if skipped
 
+        #multiply SFR of bins
+        SFR = self.bin_SFR()
         """
 
         #only recompute if geometry of system has changed
@@ -662,74 +666,3 @@ class GalaxyDisc(BaseGalaxy):
         SFR = SFdensity * area_kpc # M_sun / yr
 
         return SFR
-    
-
-#    def model(self):
-#        sf_density = self.sf_density(self.radius, self.r_max)
-#        sfr = sf_density * self.area
-#
-
-#coords class
-#    - update params simulatenously
-#    - yields k-cluster?
-#SFR class
-#    - update SFR, r_d params
-#    - call at radius, returns SFdensity
-#metallicity model class
-#    - update Z_in, Z_out
-#    - call at radius
-#line physics
-#    - call with SFR and Z
-#encpuslateing galaxy class
-#    - init with redshift, cosmology and classes
-#    - use reshift to calc flux
-#    - returns coords/k-cluster?, fluxes, vars
-
-
-#PARAMS
-#ra - ra center of galaxy
-#dec - dec center of galaxy
-#z - redshift
-#R_s - radial scale length of disc (arcsec)
-#SFR - central SFR
-#Z_in - central metallicity
-#Z_out - metallicity at scale length
-#inc - inclination
-#PA - PA of major axis
-
-
-#seeing - FWHM seeing at a wavelength
-
-if __name__ == '__main__':
-    import matplotlib.pyplot as plt
-
-    from SFdensity import ExpDisc
-    from metallicity import LinearMetallicity
-    from lineflux import EmpiricalLineFlux
-
-    from astropy.cosmology import FlatLambdaCDM
-
-    sf_density = ExpDisc(1., 1.)
-    metallicity = LinearMetallicity(1, 8.5, 8.0)
-    filename = '/data2/MUSE/metallicity_calibration/flux_cal_singlevar.h5'
-    lineflux = EmpiricalLineFlux(filename, ['H_ALPHA', 'H_BETA'],
-                                 ['6562.', 4861.])
-
-    cosmo = FlatLambdaCDM(H0=70., Om0=0.3)
-
-    galaxy = Galaxy(0.5, cosmo, 1., 10., 60., 45, sf_density, metallicity,
-                    lineflux)
-
-    fig = plt.figure()
-    ax = fig.add_subplot(111, aspect='equal', adjustable='datalim')
-    s = ax.scatter(galaxy.coords[:,0], galaxy.coords[:,1], c=galaxy.model()[0]['flux'], s=40, cmap='RdYlBu_r')
-    s.set_edgecolor('none')
-    plt.colorbar(s)
-
-#    for i in np.arange(-2, 2.1, 0.2):
-#        ax.axhline(i, color='grey', zorder=-1)
-#        ax.axvline(i, color='grey', zorder=-1)
-    
-
-    plt.show()
-
