@@ -326,8 +326,8 @@ class BaseGalaxy(object):
         #get metallicity and ionization parameter on bins
         logZ, logU = self.bin_logZ_logU(params)
 
-        #multiply SFR of bins
-        SFR = self.bin_SFR()
+        #get SFR of bins
+        SFR = self.bin_SFR(params)
 
         fluxes = np.zeros([len(self._bin_coords), len(lines)], dtype=float)
         vars_ = np.zeros_like(flux)
@@ -653,7 +653,8 @@ class GalaxyDisc(BaseGalaxy):
             raise
 
 
-        SFdensity = SFdensity_0 * np.exp(-self.radius/r_d)
+        #exponetial disc with central scaling
+        SFdensity = SFdensity_0 * np.exp(-self.radius/r_d) # M_sun/yr/kpc^2
 
         kpc_per_arcsec = 1. / self.cosmo.arcsec_per_kpc_proper(self.z).value
         area_kpc = self.bin_area * kpc_per_arcsec**2. # kpc^2
