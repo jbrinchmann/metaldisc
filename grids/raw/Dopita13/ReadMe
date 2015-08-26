@@ -1,0 +1,163 @@
+J/ApJS/208/10   Effects of a {kappa}-distribution in HII regions (Dopita+, 2013)
+================================================================================
+New strong-line abundance diagnostics for H II regions: effects of
+{kappa}-distributed electron energies and new atomic data.
+    Dopita M.A., Sutherland R.S., Nicholls D.C., Kewley L.J., Vogt F.P.A.
+   <Astrophys. J. Suppl. Ser., 208, 10 (2013)>
+   =2013ApJS..208...10D
+================================================================================
+ADC_Keywords: Atomic physics ; H II regions ; Abundances
+Keywords: atomic data, atomic processes, H II regions, ISM: abundances, plasmas
+
+Abstract:
+    Recently, Nicholls et al. (2012ApJ...752..148N), inspired by in situ
+    observations of solar system astrophysical plasmas, suggested that the
+    electrons in H II regions are characterized by a {kappa}-distribution
+    of energies rather than a simple Maxwell-Boltzmann distribution. Here,
+    we have collected together new atomic data within a modified
+    photoionization code to explore the effects of both the new atomic
+    data and the {kappa}-distribution on the strong-line techniques used
+    to determine chemical abundances in H II regions. By comparing the
+    recombination temperatures (T_rec_) with the forbidden line
+    temperatures (T_FL_), we conclude that {kappa}~20. While representing
+    only a mild deviation from equilibrium, this result is sufficient to
+    strongly influence abundances determined using methods that depend on
+    measurements of the electron temperature from forbidden lines. We
+    present a number of new emission line ratio diagnostics that cleanly
+    separate the two parameters determining the optical spectrum of H II
+    regions--the ionization parameter q or {} and the chemical abundance,
+    12+log(O/H). An automated code to extract these parameters is
+    presented. Using the homogeneous data set from van Zee et al. 1998,
+    Cat. J/AJ/116/2805, we find self-consistent results between all of
+    these different diagnostics. The systematic errors between different
+    line ratio diagnostics are much smaller than those found in the
+    earlier strong-line work. Overall, the effect of the
+    {kappa}-distribution on the strong-line abundances derived solely on
+    the basis of theoretical models is rather small.
+
+Description:
+    We have modified the MAPPINGS code (Sutherland & Dopita
+    1993ApJS...88..253S; Allen et al. 2008ApJS..178...20A) to incorporate
+    new non-thermal ({kappa}) electron energy excitation (Nicholls et al.
+    2012ApJ...752..148N, 2013ApJS..207...21N) and to bring the atomic data
+    and the Maxwell-averaged collision strengths up to date. The number of
+    ionic species treated as full non-local thermal equilibrium
+    multi-level ions has increased from 37 to 43. The multi-level atoms
+    are modeled using anywhere from three to nine levels depending on the
+    ionic configuration.
+
+File Summary:
+--------------------------------------------------------------------------------
+ FileName   Lrecl  Records  Explanations
+--------------------------------------------------------------------------------
+ReadMe         80        .  This file
+table1.dat     80       30  Literature sources used for collision strength data
+table4.dat    111      324  The "blue" line fluxes given by the MAPPINGS 4
+                             models relative to F_H{beta}_=1.0
+table5.dat    111      324  The "red" line fluxes given by the MAPPINGS 4
+                             models relative to F_H{beta}_=1.0
+table6.dat     60      324  The recombination and forbidden line temperatures
+                             of the MAPPINGS 4 models
+--------------------------------------------------------------------------------
+
+See also:
+  J/A+A/528/A69  : Li-like iso-electronic sequence (Liang+, 2011)
+  J/ApJS/188/32  : Breit-Pauli transition probabilities for SII (Tayal+, 2010)
+  J/A+A/486/629  : Effective collision strengths for C II (Tayal, 2008)
+  J/ApJS/163/207 : Oscillator and collision strengths in NI (Tayal+, 2006)
+  J/AJ/116/2805  : H II regions in spiral galaxies (Van Zee+, 1998)
+
+Byte-by-byte Description of file: table1.dat
+--------------------------------------------------------------------------------
+   Bytes Format Units   Label     Explanations
+--------------------------------------------------------------------------------
+   1-  6  A6    ---     Ion       Ion identification
+   9- 30  A22   ---     Aut       Author's name(s)
+  33- 51  A19   ---     BibCode   Bibcode
+  54- 80  A27   ---     Comm      VizieR catalog reference or comment
+--------------------------------------------------------------------------------
+
+Byte-by-byte Description of file: table4.dat
+--------------------------------------------------------------------------------
+   Bytes Format Units   Label     Explanations
+--------------------------------------------------------------------------------
+   1-  4  F4.2  Sun     Z         [0.05/5] Model metallicity (relative to Sun)
+   6-  7  I2    ---     kappa     [10/50]? Model {kappa} value
+       8  A1    ---   f_kappa     [i] i: infinite (kappa is blank)
+  10- 13  F4.2  [m/s]   logq      [6.5/8.5] Model ionization parameter (G1)
+  15- 20  F6.4  ---     O2-3727   The [O II] 3727{AA} line flux (1)
+  22- 27  F6.4  ---     O2-3729   The [O II] 3729{AA} line flux (1)
+  29- 34  F6.4  ---     Ne3-3869  The [Ne III] 3869 line flux (1)
+  36- 41  F6.4  ---     S2-4068   The [S II] 4068,78 line flux (1)
+  43- 48  F6.4  ---     Hg        The H{gamma} 4340 line flux (1)
+  50- 55  F6.4  ---     O3-4363   The [O III] 4363 line flux (1)
+  57- 62  F6.4  ---     He1-4471  The He I 4471 line flux (1)
+  64- 69  F6.4  ---     Hb        [1] The H{beta} 4861 line flux (1)
+  71- 76  F6.4  ---     O3-4959   The [O III] 4959 line flux (1)
+  78- 83  F6.4  ---     O3-5007   The [O III] 5007 line flux (1)
+  85- 90  F6.4  ---     He1-5016  The He I 5016 line flux (1)
+  92- 97  F6.4  ---     Ar3-5192  The [Ar III] 5192 line flux (1)
+  99-104  F6.4  ---     N1-5198   The [N I] 5190,00 line flux (1)
+ 106-111  F6.4  ---     N2-5755   The [N II] 5755 line flux (1)
+--------------------------------------------------------------------------------
+Note (1): Relative to F_H{beta}_ = 1.0.
+--------------------------------------------------------------------------------
+
+Byte-by-byte Description of file: table5.dat
+--------------------------------------------------------------------------------
+   Bytes Format Units   Label     Explanations
+--------------------------------------------------------------------------------
+   1-  4  F4.2  Sun     Z         [0.05/5] Model metallicity (relative to Sun)
+   6-  7  I2    ---     kappa     [10/50]? Model {kappa} value
+       8  A1    ---   f_kappa     [i] i: infinite (kappa is blank)
+  10- 13  F4.2  [m/s]   logq      [6.5/8.5] Model ionization parameter (G1)
+  15- 20  F6.4  ---     He1-5875  The He I 5875{AA} line flux (1)
+  22- 27  F6.4  ---     O1-6300   The [O I] 6300{AA} line flux (1)
+  29- 34  F6.4  ---     S3-6313   The [S III] 6312{AA} line flux (1)
+  36- 41  F6.4  ---     N2-6548   The [N II] 6548{AA} line flux (1)
+  43- 48  F6.4  ---     Ha        The H{alpha} line flux (1)
+  50- 55  F6.4  ---     N2-6584   The [N II] 6584{AA} line flux (1)
+  57- 62  F6.4  ---     He1-6678  The He I 6678{AA} line flux (1)
+  64- 69  F6.4  ---     S2-6717   The [S II] 6717{AA} line flux (1)
+  71- 76  F6.4  ---     S2-6731   The [S II] 6731{AA} line flux (1)
+  78- 83  F6.4  ---     Ar3-7136  The [Ar III] 7136{AA} line flux (1)
+  85- 90  F6.4  ---     O2-7318   The [O II] 7318{AA} line flux (1)
+  92- 97  F6.4  ---     Ar3-7751  The [Ar III] 7751{AA} line flux (1)
+  99-104  F6.4  ---     S3-9068   The [S III] 9068{AA} line flux (1)
+ 106-111  F6.4  ---     S3-9532   The [S III] 9532{AA} line flux (1)
+--------------------------------------------------------------------------------
+Note (1): Relative to F_H{beta}_ = 1.0.
+--------------------------------------------------------------------------------
+
+Byte-by-byte Description of file: table6.dat
+--------------------------------------------------------------------------------
+   Bytes Format Units   Label     Explanations
+--------------------------------------------------------------------------------
+   1-  4  F4.2  Sun     Z         [0.05/5] Model metallicity (relative to Sun)
+   6-  7  I2    ---     kappa     [10/50]? Model {kappa} value
+       8  A1    ---   f_kappa     [i] i: infinite (kappa is blank)
+  10- 13  F4.2  [m/s]   logq      [6.5/8.5] Model ionization parameter (G1)
+  15- 19  I5    K       TH        [1916/14450] Hydrogen model temperature
+  21- 25  I5    K       THe       [1994/14270] Helium model temperature
+  27- 31  I5    K       TO3       [4613/16577]? The [O III] model temperature
+  33- 37  I5    K       TAr3      [4256/14070]? The [Ar III] model temperature
+  39- 43  I5    K       TS3       [2804/13886]? The [S III] model temperature
+  45- 49  I5    K       TO2       [2987/12506]? The [O II] model temperature
+  51- 55  I5    K       TN2       [2833/12655]? The [N II] model temperature
+  57- 60  I4    K       TS2       [2373/8451] The [S II] model temperature
+--------------------------------------------------------------------------------
+
+Global Notes;
+Note (G1): the ionization parameter {Upsilon} measures the ratio of the
+     density per unit volume of ionizing photons to the particle (atom plus
+     ion) number density. In this paper, we use the alternative definition,
+     q, which is defined as the ratio of the number of ionizing photons
+     impinging per unit area per second divided by the gas particle number
+     density. The transformation between the two definitions is simply
+     q={Upsilon}c, c being the speed of light.
+
+History:
+    From electronic version of the journal
+
+================================================================================
+(End)                 Greg Schwarz [AAS], Emmanuelle Perret [CDS]    02-Oct-2013
