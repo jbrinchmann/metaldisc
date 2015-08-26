@@ -15,18 +15,23 @@ class FluxGrid(object):
 
         #use model variances or not, or used fix values
         self.model_var = model_var
-        if model_var is True:
+        if model_var is True: #use model var
             try:
                 dset = fh['var']
             except KeyError:
                 raise Exception('var dataset not found')
             self.interp_var = self.load_data(fh['var'], lines)
-        elif model_var is False:
+        elif model_var is False: # no var
             self.var = 0.
-        elif np.is_numeric(model_var):
-            if model_var
-            False:
-        self.var = model_var
+        elif np.isscalar(model_var): # scalar for all var
+            self.var = float(model_var)
+        elif isinstance(model_var, (list, tuple, np.ndarray))
+            # one scalar for each line
+            if len(model_var) != len(lines):
+                raise Exception("Length of model_var does not match number of lines")
+            self.var = np.array(model_var)
+        else:
+            raise Exception("Check input type of model_var")
 
         #wave
         self.wave = self.load_wave(fh['flux'], lines)
