@@ -51,7 +51,7 @@ class FluxGrid(object):
             raise Exception("Check input type of model_var")
 
         
-        self.logZ_solar = fh['flux'].attrs['logZ_solar']
+        self.logZ_solar = fh['logZ_solar'][()]
 
         #Close open hdf5 resources
         fh.flush()
@@ -117,8 +117,8 @@ class FluxGrid(object):
         self._check_dimension_order(dset)
         
         # load scales
-        self.logZ = dset.dims[0][0] 
-        self.logU = dset.dims[1][0] 
+        self.logZ = dset.dims[0]['logZ'] 
+        self.logU = dset.dims[1]['logU'] 
         line_name = dset.dims[2]['name']
 
         dims = (self.logZ, self.logU, lines)
