@@ -202,9 +202,15 @@ class FluxGrid(object):
 
         """
         if np.isscalar(line):
-            ind = np.where(self.lines == line)[0][0]
+            try:
+                ind = np.where(self.lines == line)[0][0]
+            except IndexError:
+                raise Exception("Line {0} not found by FluxGrid".format(line))
         else:
-            ind = [np.where(self.lines == l)[0][0] for l in line]
+            try:
+                ind = [np.where(self.lines == l)[0][0] for l in line]
+            except IndexError:
+                raise Exception("Line {0} not found by FluxGrid".format(l))
         
         wave = self.wave[ind] 
         return wave
@@ -237,9 +243,15 @@ class FluxGrid(object):
             raise Exception("SFR, logZ and logU should all have the same length")
 
         if np.isscalar(lines):
-            ind = [np.where(self.lines == lines)[0][0]]
+            try:
+                ind = [np.where(self.lines == lines)[0][0]]
+            except IndexError:
+                raise Exception("Line {0} not found by FluxGrid".format(line))
         else:
-            ind = [np.where(self.lines == l)[0][0] for l in lines]
+            try:
+                ind = [np.where(self.lines == l)[0][0] for l in lines]
+            except IndexError:
+                raise Exception("Line {0} not found by FluxGrid".format(l))
 
         x = np.column_stack([logZ, logU])
         flux = self.flux_intp(x)[:,ind]
