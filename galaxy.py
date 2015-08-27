@@ -323,18 +323,15 @@ class BaseGalaxy(object):
         #gett SFR of bins
         SFR = self.bin_SFR(params)
 
-        fluxes = np.zeros([len(self._bin_coords), len(lines)], dtype=float)
-        vars_ = np.zeros_like(flux)
-        
         #get line flux
-        fluxes, vars_ = self.fluxgrid(lines, SFR, logZ, logU)
+        flux, var = self.fluxgrid(lines, SFR, logZ, logU)
         #apply dust extinction
-        fluxes, vars_ = self.apply_bin_extinction(lines, fluxes, vars_, params)
+        flux, var = self.apply_bin_extinction(lines, flux, var, params)
 
         #apply distance correction
-        fluxes, vars_ = self.scale_flux_for_distance(fluxes, vars_)
+        flux, var = self.scale_flux_for_distance(flux, var)
 
-        return fluxes, vars_
+        return flux, var
 
 
 
