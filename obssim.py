@@ -5,6 +5,9 @@ from scipy.integrate import dblquad
 from scipy import sparse
 from scipy import spatial
 
+#base obs sim with mapping code
+#make image from binmap
+#make image from spec ra dec, pixsize, etc.
 
 class ObsSim(object):
         
@@ -35,9 +38,9 @@ class ObsSim(object):
 
         self.redist = {}
  
-    def notify(self, observable, *args, **kwargs):
-        if bins_changed:
-            self.calc_samples_to_points_dist()
+#    def notify(self, observable, *args, **kwargs):
+#        if bins_changed:
+#            self.calc_samples_to_points_dist()
 
 
     @staticmethod

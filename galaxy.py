@@ -5,11 +5,15 @@ import utils
 
 class BaseGalaxy(object):
 
-    def __init__(self, z, cosmo, fluxgrid):
+    def __init__(self, ra, dec, z, cosmo, fluxgrid):
         """Base class of galaxy models
         
         Parameters
         ----------
+        ra : float
+            Right Ascention of galaxy centre [deg]
+        dec : float
+            Declination of galaxy centre [deg]
         z : float
             Redshift of galaxy
         cosmo: astropy.cosmology object
@@ -20,6 +24,8 @@ class BaseGalaxy(object):
         """
         if (z < 0.):
             raise Exception("Reshift must be greater than zero")
+        self._ra = ra
+        self._dec = dec
         self.z = z
         self.cosmo = cosmo
         self.fluxgrid = fluxgrid
@@ -27,17 +33,20 @@ class BaseGalaxy(object):
         self._bin_coord = None
         self._bin_coord_tree = None
 
-        self.__observers = []
 
+    # Make sure bin coords are read only
+    #right ascention
+    @property
+    def ra(self):
+        """Get right ascention of disc"""
+        return self._ra
 
-    def register_observer(self, observer):
-        """Record objects that create views of the model"""
-        self.__observers.append(observer)
-    
-    def notify_observers(self, *args, **kwargs):
-        """Notify objects that create views that the model has changed config"""
-        for observer in self.__observers:
-            observer.notify(self, *args, **kwargs)
+    #declination
+    @property
+    def dec(self):
+        """Get declination of disc"""
+        return self._dec
+
 
     #require subclasses to have the following attributes
     @property
@@ -66,7 +75,7 @@ class BaseGalaxy(object):
         raise NotImplementedError("Subclasses should provide bin_area attribute")
     
 
-    #require subclasses to supply bin_coords and trigger updates as required
+    #require subclasses to supply bin_coords
     @property
     def bin_coord(self):
         """Get Nx2 array galaxy sample coords (for N bins) [deg]"""
@@ -75,7 +84,8 @@ class BaseGalaxy(object):
         else:
             return self._bin_coord
 
-    #automatically compute bin_coordTree on update
+
+    #automatically compute bin_coordTree
     @bin_coord.setter
     def bin_coord(self, value):
         """Set Nx2 array galaxy sample coords (for N bins) [deg]
@@ -84,7 +94,6 @@ class BaseGalaxy(object):
         """
         self._bin_coord = value
         self._bin_coord_tree = cKDTree(value) #construct cKDTree
-        self.notify_observers(bins_changed=True) #trigger notification
 
 
     @property
@@ -366,56 +375,23 @@ class GalaxyDisc(BaseGalaxy):
         
         """
        
-        super(GalaxyDisc, self).__init__(z, cosmo, fluxgrid)
+        super(GalaxyDisc, self).__init__(ra, dec, z, cosmo, fluxgrid)
 
         #protect params from being overwritten without updating geometry
-        self._ra = ra
-        self._dec = dec
         self._pa = pa
         self._inc = inc
         self._r_max = r_max
         self._n_annuli = n_annuli
 
-        self.geometry_changed = True #bins require updating
-        self._update_bin_coords() #initialize geometry
+        self._set_bin_coords() #initialize geometry
 
 
-# Make sure bin coords recomputed if following geometry parameters are changed
-    #right ascention
-    @property
-    def ra(self):
-        """Get right ascention of disc"""
-        return self._ra
-
-    @ra.setter
-    def ra(self, value):
-        """Set right ascention of disc"""
-        self._ra = value
-        self.geometry_changed = True #bins require updating
-
-    #declination
-    @property
-    def dec(self):
-        """Get declination of disc"""
-        return self._dec
-
-    @dec.setter
-    def dec(self, value):
-        """Set declination of disc"""
-        self._dec = value
-        self.geometry_changed = True #bins require updating
-
+    # Make sure bin coords are read only
     #position angle
     @property
     def pa(self):
         """Get position angle of disc"""
         return self._pa
-
-    @pa.setter
-    def pa(self, value):
-        """Set position angle of disc"""
-        self._pa = value
-        self.geometry_changed = True #bins require updating
 
     #inclination
     @property
@@ -423,23 +399,11 @@ class GalaxyDisc(BaseGalaxy):
         """Get inclination of disc"""
         return self._inc
 
-    @inc.setter
-    def inc(self, value):
-        """Set inclination of disc"""
-        self._inc = value
-        self.geometry_changed = True #bins require updating
-
     #max radius
     @property
     def r_max(self):
         """Get max radius of disc"""
         return self._r_max
-
-    @r_max.setter
-    def r_max(self, value):
-        """Set max radius of disc"""
-        self._r_max = value
-        self.geometry_change = True #bins require updating
 
     #no. annular bins
     @property
@@ -447,13 +411,6 @@ class GalaxyDisc(BaseGalaxy):
         """Get number of annuli in disc model"""
         return self._n_annuli
 
-    @n_annuli.setter
-    def n_annuli(self, value):
-        """Set number of annuli in disc model"""
-        self._n_annuli = value
-        self.geometry_changed = True #bins require updating
-
-# END of geometry parameters
 
     @staticmethod
     def calc_bin_positions(r_max, n_annuli):
@@ -527,10 +484,9 @@ class GalaxyDisc(BaseGalaxy):
         return x, y, radius, theta, r_in, r_out, d_theta
 
 
-    def transform_to_sky(self, x, y):
-        """Maps disc x and y coords to sky RA and Dec
-
-        Includes inclination and position angle effects
+    def incline_rotate(self, x, y):
+        """Maps disc x, y coords to observed x, y coords, accounting for
+        inclination and position angle effects
 
         Parameters
         ----------
@@ -541,10 +497,10 @@ class GalaxyDisc(BaseGalaxy):
 
         Return
         ------
-        ra : float array
-            right ascention [deg]
-        dec : float array
-            declination [deg]
+        new_x : float array
+            right ascention [arcsec]
+        new_y : float array
+            declination [arcsec]
 
         """
 
@@ -561,51 +517,31 @@ class GalaxyDisc(BaseGalaxy):
 
         new_coords = np.dot(rot_matrix, coords.T)
 
-        ra, dec = utils.separation_to_radec(new_coords[:,0], new_coords[:,1],
-                                            self._ra, self._dec)
-        return ra, dec
+        new_x = new_coords[:,0]
+        new_y = new_coords[:,1]
+
+        return new_x, new_y
 
 
-    def _update_bin_coords(self):   
-        """Set bin coordinates for model sampling
-        
-        Notes
-        -----
-        Work is only done if (self.geometry_changed == True)
+    def _set_bin_coords(self):   
+        """Set bin coordinates for model sampling.
 
-        Return
-        ------
-        flag : bool
-            True if recomputation was performed. False if skipped
-
-        #multiply SFR of bins
-        SFR = self.bin_SFR()
         """
 
-        #only recompute if geometry of system has changed
-        if self.geometry_changed:
+        #calculate bin geometry
+        out = self.calc_bin_positions(self._r_max, self._n_annuli)
+        x, y, radius, theta, r_in, r_out, d_theta = out
 
-            #calculate bin geometry
-            out = self.calc_bin_positions(self._r_max, self._n_annuli)
-            x, y, radius, theta, r_in, r_out, d_theta = out
+        self.disc_x = x
+        self.disc_y = y
+        self.radius = radius
+        self.theta = theta #x,y=(0,0) theta = 0 and x,y=(0,1) theta=pi/2
+        #area of annular segments
+        self.bin_area = d_theta / 2. * (r_out ** 2. - r_in ** 2.)
 
-            self.disc_x = x
-            self.disc_y = y
-            self.radius = radius
-            self.theta = theta #x,y=(0,0) theta = 0 and x,y=(0,1) theta=pi/2
-            #area of annular segments
-            self.bin_area = d_theta / 2. * (r_out ** 2. - r_in ** 2.)
-
-            #calculate projected bin coords on sky
-            ra, dec = self.transform_to_sky(x, y)
-            self.bin_coords = np.column_stack([ra, dec])
-
-            #Reset flag
-            self.geometry_changed = False
-            return True
-
-        else:
-            return False
+        #calculate projected bin coords on sky
+        x, y = self.incline_rotate(x, y)
+        self.bin_coords = np.column_stack([x, y])
 
 
     def bin_SFR(self, params):
