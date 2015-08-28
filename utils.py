@@ -1,6 +1,5 @@
 import numpy as np
 
-
 def vactoair(wave_vac):
     """Convert vacuum wavelengths to air wavelengths
 

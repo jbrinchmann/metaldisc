@@ -198,7 +198,7 @@ class FluxGrid(object):
         Returns
         -------
         wave : float or array of floats
-            wavelength [Angstrom
+            wavelength [Angstrom]
 
         """
         if np.isscalar(line):

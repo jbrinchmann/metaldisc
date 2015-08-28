@@ -1,19 +1,300 @@
 import numpy as np
-import pyfits
-import pywcs
-from scipy.integrate import dblquad
+from astropy import wcs
 from scipy import sparse
-from scipy import spatial
+from scipy.spatial import cKDTree
 
 #base obs sim with mapping code
 #make image from binmap
 #make image from spec ra dec, pixsize, etc.
+    
+#restore notify and register observers
+
+class BaseObsSim(object):
+
+    def __init__(self, galaxy, seeing, conserve_flux=False, maxdist=3.):
+        """Base class of observation simulations
+
+        Parameters
+        ----------
+        galaxy : instance of BaseGalaxy or subclass
+            galaxy to simulate observations of
+        seeing : instance of BaseSeeing or subclass
+            seeing model to be used in simulation
+        conserve_flux : bool [default=False]
+            if flag set, bins conserve flux, rather than intensity
+            i.e. if False values normalized to number of pixels per bin
+        maxdist : float [default=3]
+            maximum distance considered when mapping flux to simualated images
+
+        """
+
+        self._galaxy = galaxy
+        self._seeing = seeing
+
+        self.conserve_flux = conserve_flux
+        self.maxdist = maxdist
+
+        self._pixel_coord = None
+        self._pixel_coord_tree = None
+
+        self.mapping_matrix = {} #store for flux mappings
+
+#        pix_id [1,1,1,1,2,2,3,3,3...] 1D
+#        pix_centre [[x, y]] rel_coords not RA,Dec 2D
+#        pix_area [0.04, 0.04, 0.04] 1D
+
+    #this class can bin flux by id number
+
+    # Make sure setup is read only as flux redistribution depends on them being fixed
+    @property
+    def galaxy(self):
+        """Get galaxy being simulated"""
+        return self._galaxy
+
+    @property
+    def seeing(self):
+        """Get seeing used in simulation"""
+        return self._seeing
+    #END readonly
+
+    @property
+    def pixel_id(self):
+        """Array of image pixel id numbers"""
+        raise NotImplementedError("Subclasses should provide bin_id attribute")
+
+    @property
+    def pixel_area(self):
+        """Array of image pixel areas [arcsec^2]"""
+        raise NotImplementedError("Subclasses should provide bin_area attribute")
+
+    #require subclasses to supply pixel_coords
+    @property
+    def pixel_coord(self):
+        """Get Nx2 array relative image pixel coords (for N pixels) [arcsec]"""
+        if self._pixel_coord is None:
+            raise NotImplementedError("Subclasses should provide bin_coord attribute")
+        else:
+            return self._bin_coord
+
+
+    #automatically compute bin_coordTree
+    @pixel_coord.setter
+    def pixel_coord(self, value):
+        """Set Nx2 array image pixel coords (for N pixels) [arcsec]
+        
+        Forces update of cKDTree repesentation
+        """
+        self._pixel_coord = value
+        self._pixel_coord_tree = cKDTree(value) #construct cKDTree
+
+
+    @property
+    def pixel_coord_tree(self):
+        """Get scipy.cKDTree representation of pixel_coord"""
+        if self._bin_coordTree is None:
+            raise NotImplementedError("Subclasses should provide pixel_coord attribute")
+        else:
+            return self._pixel_coord_tree
+
+
+    def _calc_pixel2bin_matrix(self):
+        """Constructs matrix mapping pixel area to bins
+
+        Returns
+        -------
+        m : CSR sparse matrix
+
+        """
+
+        uniq_bin_id = np.unique(self.bin_id)
+
+        n_bins = len(uniq_bin_id)
+        n_pixels = len(self.bin_id)
+        area_mapper = np.zeros((n_bins, n_pixels), dtype=float)
+
+        for i, id_ in enumerate(uniq_bin_id):
+            mask = (self.bin_id == id_)
+            area_mapper[i][mask] = self.bin_area[mask]
+            if not self.conserve_flux: 
+               area_mapper[i][mask] /= np.sum(mask) #conserve intensity
+
+        m = sparse.csr_matrix(area_mapper)
+        return m
+    
+
+    def calc_mapping_matrix(self, line):
+
+        wave = self.galaxy.get_obs_wave(line) #observed wavelength
+
+        pixel2bin = self._calc_pixel2bin_matrix()
+
+    def calc_samples_to_points_dist(self):
+        #calc dist from sample cooords to galaxy coords (less that maxdist")
+        dist = self.pixel_coord_tree.sparse_distance_matrix(
+                self.galaxy.bin_coord_tree, self.maxdist)
+        self.dist_matrix = dist.tocsr()
+
+
+    def get_mapping_matrix(self, line):
+
+        try:
+            #check if already computed
+            m = self.mapping_matrix[line]
+        except KeyError:
+            #if not, compute now
+            m = self.calc_mapping_matrix(line)
+            self.mapping_matrix[line] = m
+
+        return m
+
+
+
+
+class BinmapObsSim(BaseObsSim):
+
+    def __init__(self, segmap, galaxy, seeing, conserve_flux=False, maxdist=3.):
+        """Simulates observations given a segmentation map image
+
+        Notes
+        -----
+        The segmentation map is a integer array where values represent:
+            >= 1: represents bin numbers
+            <= 0: pixels are ignored
+
+        Parameters
+        ----------
+        binmap : astropy.io.fits.ImageHDU instance
+            segmentation map image with WCS info in header 
+        galaxy : instance of BaseGalaxy or subclass
+            galaxy to simulate observations of
+        seeing : instance of BaseSeeing or subclass
+            seeing model to be used in simulation
+        conserve_flux : bool [default=False]
+            if flag set, bins conserve flux, rather than intensity
+            i.e. if False values normalized to number of pixels per bin
+        maxdist : float [default=3]
+            maximum distance considered when mapping flux to simualated images
+            
+        """
+
+        super(BaseObsSim, self).__init__(galaxy, seeing, conserve_flux)
+
+        mask = (binmap.flatten() >= 1)
+
+        self.pixel_id = binmap.flatten()[mask]
+
+        x, y = self.get_pixel_coord(binmap.hdr)
+        self.pixel_coord = np.column_stack([x[mask], y[mask]])
+        
+        self.pixel_area = self.get_pixel_area(binmap.hdr)[mask]
+
+
+    def calc_rel_coords(self, ra, dec):
+        """Calculates the relative sky coordinates given sky coordinates
+
+        Parameters
+        ----------
+        ra : array of floats
+            right ascention [deg]
+        dec : array of floats
+            declination [deg]
+
+        Returns
+        -------
+        x : array of floats
+            x-axis distances from galaxy centre [arcsec]
+        y : array of floats
+            y-axis distances from galaxy centre [arcsec]
+
+        """
+
+        x = ra - self.galaxy.ra
+        y = dec - self.galaxy.dec
+
+        x -= np.round(x/360.) * 360. # wrap to interval (-180,180)
+
+        x *= np.cos(np.radians(self.galaxy.dec)) * 3600. #deg to arcsec
+        y *= 3600. #deg to arcsec
+
+        return x, y 
+
+
+    def get_pixel_coord(self, hdr, x_offset=0., y_offset=0.):
+        """Get relative pixel coordinates
+
+        Notes
+        -----
+        x_offset=-0.5, y_offset=-0.5 yields coordinates of pixels' lower-left corners
+
+        Parameters
+        ----------
+        hdr : astropy.io.fits.Header instance
+            FITS header including WCS info
+        x_offset : [optional]float
+            x-axis pixel coord offsets
+        y_offset : [optional]float
+            y-axis pixel coord offsets
+
+        Returns
+        -------
+        x : array of floats
+            x coords of relative pixel centres [arcsec]
+        y : array of floats
+            y coords of relative pixel centres [arcsec]
+
+        """
+        #get pixel centres [image coords]
+        n_x = hdr['NAXIS1']
+        n_y = hdr['NAXIS2']
+        pix_x = np.tile(np.arange(n_x, dtype=float), n_y) + x_offset
+        pix_y = np.repeat(np.arange(n_y, dtype=float), n_x) + y_offset
+
+        #convert pixel centres to sky coords
+        wcsobj = wcs.WCS(hdr)
+        coords = np.column_stack([pix_x, pix_y])
+        new_coords = wcsobj.all_pix2world(coords, 0) #[[ra], [dec]]
+
+        #get pixel distances from galaxy [arcsec]
+        x, y = self.calc_rel_coords(new_coords[:,0], new_coords[:,1])
+
+
+    def get_pixel_area(self, hdr):
+        """Set pixel areas
+
+        Parameters
+        ----------
+        hdr : astropy.io.fits.Header instance
+            FITS header including WCS info
+
+        Returns
+        -------
+        area : array of floats
+            pixel areas [arcsec^2]
+
+        """
+
+        #get pixel corners [arcsec]  (clockwise)
+        A_x, A_y = self.get_pixel_coord(hdr, x_offset=-0.5, y_offset=-0.5)
+        B_x, B_y = self.get_pixel_coord(hdr, x_offset=-0.5, y_offset=+0.5)
+        C_x, C_y = self.get_pixel_coord(hdr, x_offset=+0.5, y_offset=+0.5)
+        D_x, D_y = self.get_pixel_coord(hdr, x_offset=+0.5, y_offset=-0.5)
+
+        #get vectors between opposite corners
+        AC_x = C_x - A_x
+        AC_y = C_y - A_y
+
+        BD_x = D_x - B_x
+        BD_y = D_y - B_y
+
+        area = 0.5 * np.abs((AC_x * BD_y) - (BD_x * AC_y))
+
+        return area
+
 
 class ObsSim(object):
         
     def __init__(self, galaxy, ra, dec, segmap, seeing):
         self.galaxy = galaxy
-        galaxy.register_observer(self)
 
         self.seeing = seeing
         
@@ -38,10 +319,6 @@ class ObsSim(object):
 
         self.redist = {}
  
-#    def notify(self, observable, *args, **kwargs):
-#        if bins_changed:
-#            self.calc_samples_to_points_dist()
-
 
     @staticmethod
     def _dist_from(wcs, pix_x, pix_y, ra, dec):

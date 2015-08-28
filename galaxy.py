@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.spatial import cKDTree
 
-import utils
+from utils import vactoair
 
 class BaseGalaxy(object):
 
@@ -22,30 +22,41 @@ class BaseGalaxy(object):
             fluxgrid object specifying the line-ratio physics
 
         """
-        if (z < 0.):
-            raise Exception("Reshift must be greater than zero")
+
         self._ra = ra
         self._dec = dec
-        self.z = z
+
+        if (z < 0.):
+            raise Exception("Reshift must be greater than zero")
+        self._z = z
+
         self.cosmo = cosmo
-        self.fluxgrid = fluxgrid
+        self._fluxgrid = fluxgrid
 
         self._bin_coord = None
         self._bin_coord_tree = None
 
 
-    # Make sure bin coords are read only
-    #right ascention
+    # Make some attributes read only
     @property
     def ra(self):
         """Get right ascention of disc"""
         return self._ra
 
-    #declination
     @property
     def dec(self):
         """Get declination of disc"""
         return self._dec
+
+    @property
+    def z(self):
+        """Get redshift of disc"""
+        return self._z
+
+    @property
+    def fluxgrid(self):
+        """Get fluxgrid used in galaxy"""
+        return self._fluxgrid
 
 
     #require subclasses to have the following attributes
@@ -56,7 +67,7 @@ class BaseGalaxy(object):
 
     @property
     def theta(self):
-        """Azimuthal angle of galaxy bins in plane of disc [deg]"""
+        """Azimuthal angle of galaxy bins in plane of disc [radians]"""
         raise NotImplementedError("Subclasses should provide theta attribute")
 
     @property
@@ -78,7 +89,7 @@ class BaseGalaxy(object):
     #require subclasses to supply bin_coords
     @property
     def bin_coord(self):
-        """Get Nx2 array galaxy sample coords (for N bins) [deg]"""
+        """Get Nx2 array galaxy sample coords (for N bins) [arcsec]"""
         if self._bin_coord is None:
             raise NotImplementedError("Subclasses should provide bin_coord attribute")
         else:
@@ -88,7 +99,7 @@ class BaseGalaxy(object):
     #automatically compute bin_coordTree
     @bin_coord.setter
     def bin_coord(self, value):
-        """Set Nx2 array galaxy sample coords (for N bins) [deg]
+        """Set Nx2 array galaxy sample coords (for N bins) [arcsec]
         
         Forces update of cKDTree repesentation and notifies observers
         """
@@ -103,6 +114,34 @@ class BaseGalaxy(object):
             raise NotImplementedError("Subclasses should provide bin_coord attribute")
         else:
             return self._bin_coord_tree
+
+    def get_obs_wave(self, line)
+        """Given line name return observed wavelength [Angstrom]
+
+        Notes
+        -----
+        Redshifts and then converts to air wavelength
+        
+        Parameters
+        ----------
+        line : string or list of strings of line names
+
+        Returns
+        -------
+        wave : float or array of floats
+            wavelength [Angstrom]
+
+        """
+        wave = self.fluxgrid(line)
+
+        wave *= (1.+self.z)
+
+        if np.isscalar(wave):
+            wave = vactoair(np.array([wave]))[0]
+        else:
+            wave = vactoair(wave)
+        
+        return wave
 
 
     def bin_SFR(self, params):
@@ -267,7 +306,7 @@ class BaseGalaxy(object):
         """
 
         #get wavelength of emission line
-        wave = [self.fluxgrid.get_wave(l) for l in lines]
+        wave = self.fluxgrid.get_wave(lines)
 
         #get tauV
         tauV = self._bin_tauV(params)
