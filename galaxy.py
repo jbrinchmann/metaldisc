@@ -515,13 +515,6 @@ class GalaxyDisc(BaseGalaxy):
 
         # bin ID number within each annulus
         I = np.concatenate([np.arange(i, dtype=float) for i in n])
-#        #lines['flux'] *= ext
-#        d_lum = self.luminosity_distance(self.z)
-#        norm = 4. * np.pi * d_lum ** 2.
-#        lines['flux'] /= norm
-#        lines['var'] /= norm ** 2
-#
-#        return lines
 
         d_theta = 2. * np.pi / N
         theta = I * d_theta  #angle to bin
