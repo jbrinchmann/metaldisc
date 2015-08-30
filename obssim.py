@@ -11,7 +11,7 @@ from scipy.spatial import cKDTree
 
 class BaseObsSim(object):
 
-    def __init__(self, galaxy, seeing, conserve_flux=False, maxdist=3.):
+    def __init__(self, galaxy, seeing, conserve_flux=False):
         """Base class of observation simulations
 
         Parameters
@@ -23,8 +23,6 @@ class BaseObsSim(object):
         conserve_flux : bool [default=False]
             if flag set, bins conserve flux, rather than intensity
             i.e. if False values normalized to number of pixels per bin
-        maxdist : float [default=3]
-            maximum distance considered when mapping flux to simualated images
 
         """
 
@@ -32,7 +30,6 @@ class BaseObsSim(object):
         self._seeing = seeing
 
         self.conserve_flux = conserve_flux
-        self.maxdist = maxdist
 
         self._pixel_coord = None
         self._pixel_coord_tree = None
@@ -120,19 +117,38 @@ class BaseObsSim(object):
 
         m = sparse.csr_matrix(area_mapper)
         return m
+
+    def _calc_psf2pixel_matrix(self, wave):
+        maxdist = self.seeing.radius_enclosing(0.99, wave)
+        if (maxdist < 0.):
+            raise Exception("Max distance is negative, check seeing.radius_enclosing")
+        elif (maxdist > 10.):
+            raise Exception("Max distance is too large check seeing.radius_enclosing")
+        
+        #get distance between image pixels and galaxy bins
+        m = self.pixel_coord_tree.sparse_distance_matrix(
+                self.galaxy.bin_coord_tree, maxdist)
+        m = m.tocsr()
+
+        #calc PSF at distances
+        m.data[:] = self.seeing(m.data, wave)
+        print "CHECK THIS IS CORRECT DIMENSION"
+        return m
     
 
     def calc_mapping_matrix(self, line):
 
         wave = self.galaxy.get_obs_wave(line) #observed wavelength
 
+        #matrix mapping image pixels to image bins multiplied by pixel area
         pixel2bin = self._calc_pixel2bin_matrix()
 
-    def calc_samples_to_points_dist(self):
-        #calc dist from sample cooords to galaxy coords (less that maxdist")
-        dist = self.pixel_coord_tree.sparse_distance_matrix(
-                self.galaxy.bin_coord_tree, self.maxdist)
-        self.dist_matrix = dist.tocsr()
+        #matrix mapping galaxy bins to image pixels redistributed according to
+        #seeing
+        psf2pixel = self._calc_psf2pixel_matrix(wave)
+
+        mapping_matrix = pixel2bin * psf2pixel
+        return mapping_matrix
 
 
     def get_mapping_matrix(self, line):
@@ -147,6 +163,24 @@ class BaseObsSim(object):
 
         return m
 
+    def __call__(self, lines, params):
+
+        uniq_bin_id = np.unique(self.bin_id)
+        n_bins = len(unique_bin_id)
+        n_lines = len(lines)
+
+        flux = np.full((n_bins, n_lines), np.nan, dtype=float)
+        var = np.full((n_bins, n_lines), np.nan, dtype=float)
+
+        gal_flux, gal_var = self.galaxy(lines, params)
+
+        for i_line, line in enumerate(lines):
+            mapping = mapping_matrix(self, line)
+            flux[:,i_line] = mapping.dot(gal_flux[:,i_line])
+            var[:,i_line] = mapping.dot(gal_var[:,i_line])
+
+        return flux, var
+            
 
 
 
