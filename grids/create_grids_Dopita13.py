@@ -79,8 +79,10 @@ def create_grid(logZ, logU, flux):
     points = np.column_stack([logZ, logU])
     intp = LinearNDInterpolator(points, flux)
 
-    X_logZ, X_logU = np.meshgrid(x_logZ, x_logU)
-    X = np.column_stack([X_logZ.ravel(), X_logU.ravel()])
+
+    X_logZ = np.repeat(x_logZ, len(x_logU))
+    X_logU = np.tile(x_logU, len(x_logZ))
+    X = np.column_stack([X_logZ, X_logU])
     grid = intp(X).reshape([x_logZ.size, x_logU.size, -1])
     
     return x_logZ, x_logU, grid

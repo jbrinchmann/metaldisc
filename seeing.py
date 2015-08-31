@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.interpolate import interp1d
-from scipy.optimize import newton
+from scipy.optimize import brentq
 
 class MoffatSeeing(object):
 
@@ -51,7 +51,11 @@ class MoffatSeeing(object):
         
         f = lambda r, alpha, beta, x: self._moffat_integral(r,alpha,beta) - x
         
-        r = newton(f, 2., args=(alpha, beta, fraction))
+        try:
+            r = brentq(f, 0., 20., args=(alpha, beta, fraction))
+        except ValueError:
+            raise RuntimeError("PSF is very broad") # if necessary increase upperbound in brentq function
+
         return r
 
 

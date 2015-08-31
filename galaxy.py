@@ -23,18 +23,27 @@ class BaseGalaxy(object):
 
         """
 
+        # Read only params
         self._ra = ra
         self._dec = dec
-
+        self._fluxgrid = fluxgrid
         if (z < 0.):
             raise Exception("Reshift must be greater than zero")
         self._z = z
 
-        self.cosmo = cosmo
-        self._fluxgrid = fluxgrid
+        # Required attributes
+        self.__radius = None
+        self.__theta = None
+        self.__disc_x = None
+        self.__disc_y = None
+        self.__bin_area = None
 
-        self._bin_coord = None
-        self._bin_coord_tree = None
+        self.cosmo = cosmo
+
+        #special
+        self.__bin_coord = None
+        self.__bin_coord_tree = None
+
 
 
     # Make some attributes read only
@@ -63,59 +72,93 @@ class BaseGalaxy(object):
     @property
     def radius(self):
         """Radius of galaxy bins in plane of disc [arcsec]"""
-        raise NotImplementedError("Subclasses should provide radius attribute")
+        if self.__radius is None:
+            raise NotImplementedError("Subclasses should provide radius attribute")
+        else:
+            return self.__radius
+
+    @radius.setter
+    def radius(self, value):
+        self.__radius = value
+
 
     @property
     def theta(self):
         """Azimuthal angle of galaxy bins in plane of disc [radians]"""
-        raise NotImplementedError("Subclasses should provide theta attribute")
+        if self.__theta is None:
+            raise NotImplementedError("Subclasses should provide theta attribute")
+        else:
+            return self.__theta
+
+    @theta.setter
+    def theta(self, value):
+        self.__theta = value
+
 
     @property
     def disc_x(self):
-        """x coord of galaxy bins in plane of disc [arcsec]"""
-        raise NotImplementedError("Subclasses should provide disc_x attribute")
+        """Get x coord of galaxy bins in plane of disc [arcsec]"""
+        if self.__disc_x is None:
+            raise NotImplementedError("Subclasses should provide disc_x attribute")
+        else:
+            return self.__disc_x
+
+    @disc_x.setter
+    def disc_x(self, value):
+        self.__disc_x = value
+
 
     @property
     def disc_y(self):
         """y coord of galaxy bins in plane of disc [arcsec]"""
-        raise NotImplementedError("Subclasses should provide disc_y attribute")
+        if self.__disc_y is None:
+            raise NotImplementedError("Subclasses should provide disc_y attribute")
+        else:
+            return self.__disc_y
+
+    @disc_y.setter
+    def disc_y(self, value):
+        self.__disc_y = value
 
     @property
     def bin_area(self):
         """Array of galaxy sample bins areas [arcsec^2]"""
-        raise NotImplementedError("Subclasses should provide bin_area attribute")
+        if self.__bin_area is None:
+            raise NotImplementedError("Subclasses should provide bin_area attribute")
+        else:
+            return self.__bin_area
+
+    @bin_area.setter
+    def bin_area(self, value):
+        self.__bin_area = value
     
 
     #require subclasses to supply bin_coords
     @property
     def bin_coord(self):
         """Get Nx2 array galaxy sample coords (for N bins) [arcsec]"""
-        if self._bin_coord is None:
+        if self.__bin_coord is None:
             raise NotImplementedError("Subclasses should provide bin_coord attribute")
         else:
-            return self._bin_coord
+            return self.__bin_coord
 
 
     #automatically compute bin_coordTree
     @bin_coord.setter
     def bin_coord(self, value):
-        """Set Nx2 array galaxy sample coords (for N bins) [arcsec]
-        
-        Forces update of cKDTree repesentation and notifies observers
-        """
-        self._bin_coord = value
-        self._bin_coord_tree = cKDTree(value) #construct cKDTree
+        self.__bin_coord = value
+        self.__bin_coord_tree = cKDTree(value) #construct cKDTree
 
 
     @property
     def bin_coord_tree(self):
         """Get scipy.cKDTree representation of bin_coord"""
-        if self._bin_coordTree is None:
+        if self.__bin_coord_tree is None:
             raise NotImplementedError("Subclasses should provide bin_coord attribute")
         else:
-            return self._bin_coord_tree
+            return self.__bin_coord_tree
 
-    def get_obs_wave(self, line)
+    def get_obs_wave(self, lines):
         """Given line name return observed wavelength [Angstrom]
 
         Notes
@@ -124,7 +167,7 @@ class BaseGalaxy(object):
         
         Parameters
         ----------
-        line : string or list of strings of line names
+        lines : string or list of strings of line names
 
         Returns
         -------
@@ -132,7 +175,7 @@ class BaseGalaxy(object):
             wavelength [Angstrom]
 
         """
-        wave = self.fluxgrid(line)
+        wave = self.fluxgrid.get_wave(lines)
 
         wave *= (1.+self.z)
 
@@ -212,7 +255,8 @@ class BaseGalaxy(object):
             print "Parameter '{0}' not found".format(e.message)
             raise
 
-        logU = -0.8 * logZ + logU_0
+        logZ_0 = self.fluxgrid.logZ_solar
+        logU = -0.8 * (logZ-logZ_0) + logU_0
 
         return logU
 
@@ -278,17 +322,19 @@ class BaseGalaxy(object):
 
         tauV = (tauV_out-tauV_in) * (self.radius/r_d) + tauV_in
 
+        tauV = np.clip(tauV, 0., None) # no negative values
+
         return tauV
 
 
-    def apply_bin_extinction(self, line, flux, var, params)
+    def apply_bin_extinction(self, lines, flux, var, params):
         """Add dust attenuation effects to fluxes and variances
         
 
         Parameters
         ----------
-        lines : list of strings
-            strings identifing emission line
+        lines : list of strings N
+            strings identifing emission lines
         flux : array of floats
             emission line fluxes
         var : array of floats
@@ -313,11 +359,12 @@ class BaseGalaxy(object):
         tauV = np.clip(tauV, 0., None) # no negative values
         
         # Charlot and Fall 2000 model for HII regions   (slope=1.3)
-        ext = np.exp(-tauV * (wave/5500.)**-1.3)
-        ext = np.clip(ext, 0., 1.) # restrict effects to between 0 and 1
+        attenu = np.exp(-tauV[:,None] * (wave/5500.)**-1.3)
+        attenu = np.clip(attenu, 0., 1.) # restrict effects to between 0 and 1
 
-        flux_ext = flux * ext
-        var_ext = var * ext**2.
+
+        flux_ext = flux * attenu
+        var_ext = var * attenu**2.
 
         return flux_ext, var_ext
 
@@ -343,7 +390,7 @@ class BaseGalaxy(object):
         d_lum = self.cosmo.luminosity_distance(self.z).cgs.value #cm
         norm = 4.*np.pi * d_lum**2.
         flux_attenu = flux / norm
-        var_attenu var / norm**2.
+        var_attenu = var / norm**2.
         return flux_attenu, var_attenu
    
 
@@ -517,8 +564,6 @@ class GalaxyDisc(BaseGalaxy):
 
         x = radius * np.cos(theta)
         y = radius * np.sin(theta)
-        #multiply SFR of bins
-        SFR = self.bin_SFR()
 
         return x, y, radius, theta, r_in, r_out, d_theta
 
@@ -554,7 +599,7 @@ class GalaxyDisc(BaseGalaxy):
         rot_matrix = np.array([[-np.cos(pa), np.sin(pa)*np.cos(inc)],
                                [np.sin(pa), np.cos(pa)*np.cos(inc)]])
 
-        new_coords = np.dot(rot_matrix, coords.T)
+        new_coords = (np.dot(rot_matrix, coords.T)).T
 
         new_x = new_coords[:,0]
         new_y = new_coords[:,1]
@@ -580,7 +625,7 @@ class GalaxyDisc(BaseGalaxy):
 
         #calculate projected bin coords on sky
         x, y = self.incline_rotate(x, y)
-        self.bin_coords = np.column_stack([x, y])
+        self.bin_coord = np.column_stack([x, y])
 
 
     def bin_SFR(self, params):
@@ -601,6 +646,7 @@ class GalaxyDisc(BaseGalaxy):
         -------
         SFR : array of floats
             SFR of bins [M_sun/yr]
+
         """
 
         try:
@@ -620,3 +666,34 @@ class GalaxyDisc(BaseGalaxy):
         SFR = SFdensity * area_kpc # M_sun / yr
 
         return SFR
+
+
+if __name__ == '__main__':
+    
+    from astropy.cosmology import FlatLambdaCDM
+    cosmo = FlatLambdaCDM(H0=70., Om0=0.3)
+    from fluxgrid import FluxGrid
+    lines = ['O2-3727', 'O2-3729', 'O3-5007']
+    fluxgrid = FluxGrid('grids/grid_Dopita13_kappa=inf.h5', lines, 0.04)
+    gal = GalaxyDisc(338.24124, -60.563644, 0.427548, 15., 85., 3., 45, cosmo, fluxgrid)
+
+    params = {
+            'SFdensity_0': 1.,
+            'r_d': 0.5,
+            'Z_in': 9.0,
+            'Z_out': 8.9,
+            'logU_0': -3.,
+            'tauV_in': 0.2,
+            'tauV_out': 0.1,
+            }
+
+    flux, var = gal(lines, params)
+    logZ, logU = gal.bin_logZ_logU(params)
+    tauV = gal._bin_tauV(params)
+    coords = gal.bin_coord
+
+    import matplotlib.pyplot as plt
+    plt.scatter(coords[:,0], coords[:,1], c=flux[:,2])
+    plt.colorbar()
+    
+    plt.show()
