@@ -263,6 +263,15 @@ class MultinestFitting(object):
 
 
     def multinest_loglike(self, cube, ndim, nparams):
+        model_flux, model_var = self.model(cube)
+
+        loglike = self.loglikelihood(self.obs_flux, model_flux,
+                                     self.obs_var, model_var)
+       
+        return loglike
+
+
+    def model(self, cube):
         params = self.cube_to_params(cube)
 
         model_flux, model_var = self.obssim(self.lines, params)
@@ -272,10 +281,7 @@ class MultinestFitting(object):
         model_flux = np.dot(self.line_mapping, model_flux.T).T
         model_var = np.dot(self.line_mapping, model_var.T).T
 
-        loglike = self.loglikelihood(self.obs_flux, model_flux,
-                                     self.obs_var, model_var)
-       
-        return loglike
+        return model_flux, model_var
 
 
     def multinest_run(self, basename):
