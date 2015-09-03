@@ -187,6 +187,45 @@ class BaseGalaxy(object):
         return wave
 
 
+    def incline_rotate(self, x, y):
+        """Maps disc x, y coords to observed x, y coords, accounting for
+        inclination and position angle effects
+
+        Parameters
+        ----------
+        x : float array
+            disc x-coords [arcsec]
+        y : float array
+            disc y-coords [arcsec]
+
+        Return
+        ------
+        new_x : float array
+            right ascention [arcsec]
+        new_y : float array
+            declination [arcsec]
+
+        """
+
+        coords = np.column_stack([x, y])
+                
+        inc = np.radians(self._inc)
+        pa = np.radians(90.+self._pa)
+
+        #rotate about x-axis (inc) then...
+        #rotate about z-axis (90+PA) anti-clockwise then...
+        #flip horizontal (so that East is Left)
+        rot_matrix = np.array([[-np.cos(pa), np.sin(pa)*np.cos(inc)],
+                               [np.sin(pa), np.cos(pa)*np.cos(inc)]])
+
+        new_coords = (np.dot(rot_matrix, coords.T)).T
+
+        new_x = new_coords[:,0]
+        new_y = new_coords[:,1]
+
+        return new_x, new_y
+
+
     def bin_SFR(self, params):
         """Return SFR of galaxy bins [M_sun/yr]"""
         raise NotImplementedError("Subclasses should provide bin_SFR method")
@@ -568,45 +607,6 @@ class GalaxyDisc(BaseGalaxy):
         return x, y, radius, theta, r_in, r_out, d_theta
 
 
-    def incline_rotate(self, x, y):
-        """Maps disc x, y coords to observed x, y coords, accounting for
-        inclination and position angle effects
-
-        Parameters
-        ----------
-        x : float array
-            disc x-coords [arcsec]
-        y : float array
-            disc y-coords [arcsec]
-
-        Return
-        ------
-        new_x : float array
-            right ascention [arcsec]
-        new_y : float array
-            declination [arcsec]
-
-        """
-
-        coords = np.column_stack([x, y])
-                
-        inc = np.radians(self._inc)
-        pa = np.radians(90.+self._pa)
-
-        #rotate about x-axis (inc) then...
-        #rotate about z-axis (90+PA) anti-clockwise then...
-        #flip horizontal (so that East is Left)
-        rot_matrix = np.array([[-np.cos(pa), np.sin(pa)*np.cos(inc)],
-                               [np.sin(pa), np.cos(pa)*np.cos(inc)]])
-
-        new_coords = (np.dot(rot_matrix, coords.T)).T
-
-        new_x = new_coords[:,0]
-        new_y = new_coords[:,1]
-
-        return new_x, new_y
-
-
     def _set_bin_coords(self):   
         """Set bin coordinates for model sampling.
 
@@ -666,6 +666,104 @@ class GalaxyDisc(BaseGalaxy):
         SFR = SFdensity * area_kpc # M_sun / yr
 
         return SFR
+
+
+class GalaxyMap(BaseGalaxy):
+    def __init__(self, sfrmap ra, dec, z, pa, inc, oversample, cosmo, fluxgrid):  
+        """2D Galaxy model using a SFR map
+        
+        Create a galaxy disc model with a fixed SFR
+        
+        Parameters
+        ----------
+        sfrmap: astropy.io.fits.ImageHDU
+            SFR map with WCS header [M_sun/yr]
+        ra : float
+            Right Ascention of galaxy centre [deg]
+        dec : float
+            Declination of galaxy centre [deg]
+        z : float
+            Redshift of galaxy
+        pa : float
+            postition angle of galaxy disc [deg], North=0, East=90
+        inc : float
+            inclination of galaxy disc [deg]
+        oversample : int
+            factor by which to oversample the input SFR map
+        cosmo: astropy.cosmology object
+            cosmology to use, e.g. for calculating luminosity distance
+        fluxgrid : metaldisc.fluxgrid object
+            fluxgrid object specifying the line-ratio physics
+        
+        """
+
+        super(GalaxyDisc, self).__init__(ra, dec, z, cosmo, fluxgrid)
+
+        
+
+        #protect params from being overwritten without updating geometry
+        self._pa = pa
+        self._inc = inc
+        self._oversample = oversample
+
+        self._set_SFR_map(sfrmap) #initialize geometry
+
+
+    # Make sure bin coords are read only
+    #position angle
+    @property
+    def pa(self):
+        """Get position angle of disc"""
+        return self._pa
+
+    #inclination
+    @property
+    def inc(self):
+        """Get inclination of disc"""
+        return self._inc
+
+    #oversample factor
+    @property
+    def oversample(self):
+        """Get max radius of disc"""
+        return self._oversample
+
+
+    def _set_SFR_map(self, sfrmap):
+
+        #get map coords and pixel area
+        
+        self.disc_x = x
+        self.disc_y = y
+        self.radius = np.sqrt(x**2. + y**2.)
+        self.theta = np.arctan2(y,x) % (2.*np.pi) #interval [0, 2*pi)
+        self.bin_area = 
+
+        #calculate projected bin coords on sky
+        x, y = self.incline_rotate(x, y)
+        self.bin_coord = np.column_stack([x, y])
+
+
+    def bin_SFR(self, params):
+        """Calculate the SFR of galaxy bins using an SFR map
+
+        Parameters
+        ----------
+        params : dict
+            Dictionary need not contain anything
+
+        Returns
+        -------
+        SFR : array of floats
+            SFR of bins [M_sun/yr]
+
+        """
+
+        SFR
+        
+        return SFR
+
+
 
 
 if __name__ == '__main__':
