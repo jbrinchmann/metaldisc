@@ -668,100 +668,100 @@ class GalaxyDisc(BaseGalaxy):
         return SFR
 
 
-class GalaxyMap(BaseGalaxy):
-    def __init__(self, sfrmap ra, dec, z, pa, inc, oversample, cosmo, fluxgrid):  
-        """2D Galaxy model using a SFR map
-        
-        Create a galaxy disc model with a fixed SFR
-        
-        Parameters
-        ----------
-        sfrmap: astropy.io.fits.ImageHDU
-            SFR map with WCS header [M_sun/yr]
-        ra : float
-            Right Ascention of galaxy centre [deg]
-        dec : float
-            Declination of galaxy centre [deg]
-        z : float
-            Redshift of galaxy
-        pa : float
-            postition angle of galaxy disc [deg], North=0, East=90
-        inc : float
-            inclination of galaxy disc [deg]
-        oversample : int
-            factor by which to oversample the input SFR map
-        cosmo: astropy.cosmology object
-            cosmology to use, e.g. for calculating luminosity distance
-        fluxgrid : metaldisc.fluxgrid object
-            fluxgrid object specifying the line-ratio physics
-        
-        """
-
-        super(GalaxyDisc, self).__init__(ra, dec, z, cosmo, fluxgrid)
-
-        
-
-        #protect params from being overwritten without updating geometry
-        self._pa = pa
-        self._inc = inc
-        self._oversample = oversample
-
-        self._set_SFR_map(sfrmap) #initialize geometry
-
-
-    # Make sure bin coords are read only
-    #position angle
-    @property
-    def pa(self):
-        """Get position angle of disc"""
-        return self._pa
-
-    #inclination
-    @property
-    def inc(self):
-        """Get inclination of disc"""
-        return self._inc
-
-    #oversample factor
-    @property
-    def oversample(self):
-        """Get max radius of disc"""
-        return self._oversample
-
-
-    def _set_SFR_map(self, sfrmap):
-
-        #get map coords and pixel area
-        
-        self.disc_x = x
-        self.disc_y = y
-        self.radius = np.sqrt(x**2. + y**2.)
-        self.theta = np.arctan2(y,x) % (2.*np.pi) #interval [0, 2*pi)
-        self.bin_area = 
-
-        #calculate projected bin coords on sky
-        x, y = self.incline_rotate(x, y)
-        self.bin_coord = np.column_stack([x, y])
-
-
-    def bin_SFR(self, params):
-        """Calculate the SFR of galaxy bins using an SFR map
-
-        Parameters
-        ----------
-        params : dict
-            Dictionary need not contain anything
-
-        Returns
-        -------
-        SFR : array of floats
-            SFR of bins [M_sun/yr]
-
-        """
-
-        SFR
-        
-        return SFR
+#class GalaxyMap(BaseGalaxy):
+#    def __init__(self, sfrmap, ra, dec, z, pa, inc, oversample, cosmo, fluxgrid):  
+#        """2D Galaxy model using a SFR map
+#        
+#        Create a galaxy disc model with a fixed SFR
+#        
+#        Parameters
+#        ----------
+#        sfrmap: astropy.io.fits.ImageHDU
+#            SFR map with WCS header [M_sun/yr]
+#        ra : float
+#            Right Ascention of galaxy centre [deg]
+#        dec : float
+#            Declination of galaxy centre [deg]
+#        z : float
+#            Redshift of galaxy
+#        pa : float
+#            postition angle of galaxy disc [deg], North=0, East=90
+#        inc : float
+#            inclination of galaxy disc [deg]
+#        oversample : int
+#            factor by which to oversample the input SFR map
+#        cosmo: astropy.cosmology object
+#            cosmology to use, e.g. for calculating luminosity distance
+#        fluxgrid : metaldisc.fluxgrid object
+#            fluxgrid object specifying the line-ratio physics
+#        
+#        """
+#
+#        super(GalaxyDisc, self).__init__(ra, dec, z, cosmo, fluxgrid)
+#
+#        
+#
+#        #protect params from being overwritten without updating geometry
+#        self._pa = pa
+#        self._inc = inc
+#        self._oversample = oversample
+#
+#        self._set_SFR_map(sfrmap) #initialize geometry
+#
+#
+#    # Make sure bin coords are read only
+#    #position angle
+#    @property
+#    def pa(self):
+#        """Get position angle of disc"""
+#        return self._pa
+#
+#    #inclination
+#    @property
+#    def inc(self):
+#        """Get inclination of disc"""
+#        return self._inc
+#
+#    #oversample factor
+#    @property
+#    def oversample(self):
+#        """Get max radius of disc"""
+#        return self._oversample
+#
+#
+#    def _set_SFR_map(self, sfrmap):
+#
+#        #get map coords and pixel area
+#        
+#        self.disc_x = x
+#        self.disc_y = y
+#        self.radius = np.sqrt(x**2. + y**2.)
+#        self.theta = np.arctan2(y,x) % (2.*np.pi) #interval [0, 2*pi)
+#        self.bin_area = 
+#
+#        #calculate projected bin coords on sky
+#        x, y = self.incline_rotate(x, y)
+#        self.bin_coord = np.column_stack([x, y])
+#
+#
+#    def bin_SFR(self, params):
+#        """Calculate the SFR of galaxy bins using an SFR map
+#
+#        Parameters
+#        ----------
+#        params : dict
+#            Dictionary need not contain anything
+#
+#        Returns
+#        -------
+#        SFR : array of floats
+#            SFR of bins [M_sun/yr]
+#
+#        """
+#
+#        SFR
+#        
+#        return SFR
 
 
 
