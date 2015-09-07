@@ -192,17 +192,24 @@ class BaseObsSim(object):
         Returns
         -------
         m : CSR sparse matrix
+            flux transform
+        m_var : CSR sparse matrix
+            variance transform
 
         """
         try:
             #check if already computed
             m = self.mapping_matrix[line]
+            m_var = self.mapping_matrix[line+'_var']
         except KeyError:
             #if not, compute now
             m = self.calc_mapping_matrix(line)
+            m_var = m.copy() #create var matrix
+            m_var.data[:] = m_var.data ** 2.
             self.mapping_matrix[line] = m
+            self.mapping_matrix[line+'_var'] = m_var
 
-        return m
+        return m, m_var
 
     def __call__(self, lines, params):
         """Calculate line fluxes and variances for a set of emission lines
@@ -232,9 +239,9 @@ class BaseObsSim(object):
         gal_flux, gal_var = self.galaxy(lines, params)
 
         for i_line, line in enumerate(lines):
-            mapping = self.get_mapping_matrix(line)
-            flux[:,i_line] = mapping.dot(gal_flux[:,i_line])
-            var[:,i_line] = mapping.dot(gal_var[:,i_line])
+            flux_mapping, var_mapping = self.get_mapping_matrix(line)
+            flux[:,i_line] = flux_mapping.dot(gal_flux[:,i_line])
+            var[:,i_line] = var_mapping.dot(gal_var[:,i_line])
 
         return flux, var
             
