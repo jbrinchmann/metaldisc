@@ -214,8 +214,7 @@ class MultinestFitting(object):
         cube[0] = logarithmic_prior(cube[0], 0.01, 100.)
 
         #r_d
-        cube[1] = linear_prior(cube[1], 0., 4.)
-
+        cube[1] = linear_prior(cube[1], 0., 2.)
 
         #get fluxgrid range in logZ and logU
         fluxgrid = self.obssim.galaxy.fluxgrid
