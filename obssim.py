@@ -477,7 +477,7 @@ if __name__ == '__main__':
     obssim = BinmapObsSim(binmap, gal, moffat, conserve_flux=False)
 
     params = {
-        'SFdensity_0': 0.647860980069 / 31.2604018452, #total SFR = 1
+        'SFRtotal': 1.
         'r_d': 0.5,
         'Z_in': 9.0,
         'Z_out': 8.9,

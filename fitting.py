@@ -210,8 +210,8 @@ class MultinestFitting(object):
 
     
     def multinest_prior(self, cube, ndim, nparams):
-        #SFdensity_0
-        cube[0] = logarithmic_prior(cube[0], 0.001, 10.)
+        #SFRtotal
+        cube[0] = logarithmic_prior(cube[0], 0.01, 100.)
 
         #r_d
         cube[1] = linear_prior(cube[1], 0., 4.)
@@ -252,7 +252,7 @@ class MultinestFitting(object):
     @staticmethod
     def cube_to_params(cube):
         params = OrderedDict()
-        params['SFdensity_0'] = cube[0]
+        params['SFRtotal'] = cube[0]
         params['r_d'] = cube[1]
         params['Z_in'] = cube[2]
         params['Z_out'] = cube[3]
@@ -285,7 +285,7 @@ class MultinestFitting(object):
 
 
     def multinest_run(self, basename):
-        parameters = ["SFdensity_0", "r_d", "Z_in", 'Z_out', "logU_0",
+        parameters = ["SFRtotal", "r_d", "Z_in", 'Z_out', "logU_0",
                       "tauV_in", "tauV_out"]
         n_params = len(parameters)
 

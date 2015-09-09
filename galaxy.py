@@ -631,8 +631,8 @@ class GalaxyDisc(BaseGalaxy):
         ----------
         params : dict
             Dictionary containing the following:
-            SFdensity_0 : float
-                Central star formation density [M_sun/yr/kpc^2]
+            SFRtotal : float
+                Total star formation rate of model [M_sun/yr]
             r_d : float
                 Disc scale length
 
@@ -644,20 +644,21 @@ class GalaxyDisc(BaseGalaxy):
         """
 
         try:
-            SFdensity_0 = params['SFdensity_0']
+            SFRtotal = params['SFRtotal']
             r_d = params['r_d']
         except KeyError, e:
             print "Parameter '{0}' not found".format(e.message)
             raise
 
+        #get central normalization of SFR
+        const = (2.*np.pi*r_d) * (r_d - (np.exp(-r_max/r_d) * (r_d+r_max)))
+        SFRdensity_0 = SFRtotal / const
 
-        #exponetial disc with central scaling
-        SFdensity = SFdensity_0 * np.exp(-self.radius/r_d) # M_sun/yr/kpc^2
+        #exponetial disc
+        SFRdensity = SFRdensity_0 * np.exp(-self.radius/r_d) # M_sun/yr/arcsec^2
 
-        kpc_per_arcsec = 1. / self.cosmo.arcsec_per_kpc_proper(self.z).value
-        area_kpc = self.bin_area * kpc_per_arcsec**2. # kpc^2
-
-        SFR = SFdensity * area_kpc # M_sun / yr
+        #account for bin size
+        SFR = SFdensity * self.bin_area # M_sun/yr
 
         return SFR
 
@@ -770,7 +771,7 @@ if __name__ == '__main__':
     gal = GalaxyDisc(338.24124, -60.563644, 0.427548, 15., 85., 3., 45, cosmo, fluxgrid)
 
     params = {
-            'SFdensity_0': 1.,
+            'SFRtotal': 1.,
             'r_d': 0.5,
             'Z_in': 9.0,
             'Z_out': 8.9,
