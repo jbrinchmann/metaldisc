@@ -240,12 +240,10 @@ class BaseGalaxy(object):
         ----------
         params : dict
             Dictionary containing the following:
-            r_d : float
-                disc scale length
             Z_in : float
                 metallicity at galaxy centre
             Z_out : float
-                metallicity at one disc scale length
+                metallicity at one arcsec from galaxy centre
 
         Returns
         -------
@@ -255,14 +253,13 @@ class BaseGalaxy(object):
         """
 
         try:
-            r_d = params['r_d']
             Z_in = params['Z_in']
             Z_out = params['Z_out']
         except KeyError, e:
             print "Parameter '{0}' not found".format(e.message)
             raise
 
-        logZ = (Z_out-Z_in) * (self.radius/r_d) + Z_in
+        logZ = (Z_out-Z_in) * self.radius + Z_in
         return logZ
 
 
@@ -338,12 +335,10 @@ class BaseGalaxy(object):
         ----------
         params : dict
             Dictionary containing the following:
-            r_d : float
-                disc scale length
             tauV_in : float
                 V-band dust extinction at galaxy centre
             tauV_out : float
-                V-band dust extinction at one disc scale length
+                V-band dust extinction at one arcsec from galaxy centre
 
         Returns
         -------
@@ -352,14 +347,13 @@ class BaseGalaxy(object):
         
         """
         try:
-            r_d = params['r_d']
             tauV_in = params['tauV_in']
             tauV_out = params['tauV_out']
         except KeyError, e:
             print "Parameter '{0}' not found".format(e.message)
             raise
 
-        tauV = (tauV_out-tauV_in) * (self.radius/r_d) + tauV_in
+        tauV = (tauV_out-tauV_in) * self.radius + tauV_in
 
         tauV = np.clip(tauV, 0., None) # no negative values
 
