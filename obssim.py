@@ -246,8 +246,6 @@ class BaseObsSim(object):
         return flux, var
             
 
-
-
 class BinmapObsSim(BaseObsSim):
 
     def __init__(self, binmap, galaxy, seeing, conserve_flux=False):
@@ -387,6 +385,72 @@ class BinmapObsSim(BaseObsSim):
         area = 0.5 * np.abs((AC_x * BD_y) - (BD_x * AC_y))
 
         return area
+
+
+class ImageObsSim(BaseObsSim):
+    def __init__(self, shape, pix_size, galaxy, seeing):
+        """Create a simulated galaxy image, centred on galaxy centre
+
+        Parameters
+        ----------
+        shape : 2-tuple of integers
+            (#x-pixels, #y-pixels)
+        pix_size : float
+            pixel size [arcsec]
+        galaxy : instance of BaseGalaxy or subclass
+            galaxy to simulate observations of
+        seeing : instance of BaseSeeing or subclass
+            seeing model to be used in simulation
+            
+        """
+
+        super(ImageObsSim, self).__init__(galaxy, seeing, conserve_flux=True)
+
+        self.shape = shape
+        n_x, n_y = shape
+        
+        self.pixel_id = np.arange(n_x*n_y)+1
+
+        x = np.arange(n_x, dtype=float) - ((n_x-1.) / 2.)
+        y = np.arange(n_y, dtype=float) - ((n_y-1.) / 2.)
+        
+        x *= -pix_size #east left
+        y *= pix_size
+
+        x = np.tile(x, n_y)
+        y = np.repeat(y, n_x)
+        self.pixel_coord = np.column_stack([x, y])
+        
+        self.pixel_area = np.full((n_x*n_y), pix_size**2., dtype=float)
+
+
+    def __call__(self, lines, params):
+        """Calculate line fluxes and variances for a set of emission lines
+        
+        Parameters
+        ----------
+        lines : list of strings
+            names identifying emission lines
+        params : dict
+            dictionary of model parameters
+
+        Returns:
+        flux : array of floats, shape:(nx,ny,nl)
+            emission line fluxes, nx,ny=shape nl:#lines [erg/s/cm^2]
+        var : array of floats, shape:(a,b)
+            corresponding variances
+
+        """
+
+        flux, var = super(ImageObsSim, self).__call__(lines, params)
+        flux = flux.reshape(self.shape[::-1] + (len(lines),))
+        var = var.reshape(self.shape[::-1] + (len(lines),))
+
+        return flux, var
+
+
+
+
 
 
 if __name__ == '__main__':
