@@ -650,6 +650,7 @@ class GalaxyDisc(BaseGalaxy):
             print "Parameter '{0}' not found".format(e.message)
             raise
 
+        r_max = self.r_max
         #get central normalization of SFR
         const = (2.*np.pi*r_d) * (r_d - (np.exp(-r_max/r_d) * (r_d+r_max)))
         SFRdensity_0 = SFRtotal / const
@@ -658,7 +659,7 @@ class GalaxyDisc(BaseGalaxy):
         SFRdensity = SFRdensity_0 * np.exp(-self.radius/r_d) # M_sun/yr/arcsec^2
 
         #account for bin size
-        SFR = SFdensity * self.bin_area # M_sun/yr
+        SFR = SFRdensity * self.bin_area # M_sun/yr
 
         return SFR
 
