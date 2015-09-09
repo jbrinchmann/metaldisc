@@ -394,7 +394,7 @@ class ImageObsSim(BaseObsSim):
         Parameters
         ----------
         shape : 2-tuple of integers
-            (#x-pixels, #y-pixels)
+            (#y-pixels, #x-pixels)
         pix_size : float
             pixel size [arcsec]
         galaxy : instance of BaseGalaxy or subclass
@@ -407,7 +407,7 @@ class ImageObsSim(BaseObsSim):
         super(ImageObsSim, self).__init__(galaxy, seeing, conserve_flux=True)
 
         self.shape = shape
-        n_x, n_y = shape
+        n_y, n_x = shape
         
         self.pixel_id = np.arange(n_x*n_y)+1
 
@@ -443,8 +443,8 @@ class ImageObsSim(BaseObsSim):
         """
 
         flux, var = super(ImageObsSim, self).__call__(lines, params)
-        flux = flux.reshape(self.shape[::-1] + (len(lines),))
-        var = var.reshape(self.shape[::-1] + (len(lines),))
+        flux = flux.reshape(self.shape + (len(lines),))
+        var = var.reshape(self.shape + (len(lines),))
 
         return flux, var
 
