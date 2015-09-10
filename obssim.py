@@ -33,6 +33,7 @@ class BaseObsSim(object):
         self.__pixel_coord_tree = None
 
         self.conserve_flux = conserve_flux
+        self.pixel2bin = 
         self.mapping_matrix = {} #store for flux mappings
 
     # Make sure setup is read only as flux redistribution depends on them being fixed
@@ -151,6 +152,11 @@ class BaseObsSim(object):
         m.data[:] = self.seeing(m.data, wave)
 
         return m
+
+    def get_gal2pixel(self, line):
+        pass
+    def get_pixel2bin(self, line):
+        pass
     
 
     def calc_mapping_matrix(self, line):
@@ -241,7 +247,12 @@ class BaseObsSim(object):
         for i_line, line in enumerate(lines):
             flux_mapping, var_mapping = self.get_mapping_matrix(line)
             flux[:,i_line] = flux_mapping.dot(gal_flux[:,i_line])
-            var[:,i_line] = var_mapping.dot(gal_var[:,i_line])
+
+            pix_flux = gal2pix.dot(gal_flux[:,i_line])
+            photons =flux_to_photons(pix_flux)
+            var = ?
+            flux[:,i_line] = pix2bin.dot(pix_flux)
+            var[:,i_line] = pix2bin.dot(pix_flux)
 
         return flux, var
             

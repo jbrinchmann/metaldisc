@@ -6,8 +6,17 @@ class FluxGrid(object):
 
     dim_order = ['logZ', 'logU', 'line']
 
-    def __init__(self, filename, lines, model_var):
+    def __init__(self, filename, lines):
+        """Fluxgrid interpolator
 
+        Parameters
+        ----------
+        filename : sting
+            file path to fluxgrid
+        lines : list of strings
+            emission line names to be used
+
+        """
 
         fh = h5py.File(filename, 'r')
 
@@ -23,33 +32,6 @@ class FluxGrid(object):
         self.flux_intp = RegularGridInterpolator(dims[:2], fluxes,
                 method='linear', bounds_error=True)
 
-        #use model variances or not, or used fix values
-        if model_var is True: #use model var
-            try:
-                dset = fh['var']
-            except KeyError:
-                raise Exception('var dataset not found in grid datafile')
-            dims, fluxes = self._load_data(fh['var'], self.lines)
-            self.var_intp = RegularGridInterpolator(dims, fluxes,
-                    method='linear', bounds_error=True)
-
-        elif model_var is False: # no var
-            self.var_fixed = np.zeros(len(self.lines), dtype=float)
-
-        elif np.isscalar(model_var): # scalar for all var
-            self.var_fixed = np.full(len(self.lines), model_var,
-                                     dtype=float)
-
-        elif isinstance(model_var, (list, tuple, np.ndarray)):
-            # one scalar for each line
-            if len(model_var) != len(lines):
-                raise Exception("Length of model_var does not match number of lines")
-            self.var_fixed = np.array(model_var)
-
-        else:
-            raise Exception("Check input type of model_var")
-
-        
         self.logZ_solar = fh['logZ_solar'][()]
 
         #Close open hdf5 resources
@@ -217,7 +199,7 @@ class FluxGrid(object):
 
 
     def __call__(self, lines, SFR, logZ, logU):
-        """Get flux and variences for a given line or lines
+        """Get flux for a given line or lines
         
         Parameters
         ----------
@@ -234,8 +216,6 @@ class FluxGrid(object):
         -------
         flux : MxN array of floats
             line fluxes [erg/s]
-        var : MxN array of floats
-            corresponding variances
 
         """
 
@@ -255,12 +235,6 @@ class FluxGrid(object):
 
         x = np.column_stack([logZ, logU])
         flux = self.flux_intp(x)[:,ind]
-        if hasattr(self, 'var_intp'):
-            var = self.var_intp(x)[:,ind]
-        else:
-            var = flux * self.var_fixed[ind]
-
         flux *= SFR[:,None]
-        var *= SFR[:,None]
 
-        return flux, var
+        return flux

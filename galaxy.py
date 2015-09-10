@@ -360,8 +360,8 @@ class BaseGalaxy(object):
         return tauV
 
 
-    def apply_bin_extinction(self, lines, flux, var, params):
-        """Add dust attenuation effects to fluxes and variances
+    def apply_bin_extinction(self, lines, flux, params):
+        """Add dust attenuation effects to fluxes
         
 
         Parameters
@@ -370,8 +370,6 @@ class BaseGalaxy(object):
             strings identifing emission lines
         flux : array of floats
             emission line fluxes
-        var : array of floats
-            corresponding emission line variances
         params : dict
             dictionary of model parameters
 
@@ -379,8 +377,6 @@ class BaseGalaxy(object):
         -------
         flux_ext : array of floats
             array of fluxes with extinction applied
-        var_ext : array of floats
-            array of variances with extinction applied
         
         """
 
@@ -397,38 +393,32 @@ class BaseGalaxy(object):
 
 
         flux_ext = flux * attenu
-        var_ext = var * attenu**2.
 
-        return flux_ext, var_ext
+        return flux_ext
 
 
-    def scale_flux_for_distance(self, flux, var):
+    def scale_flux_for_distance(self, flux):
         """Accounts flux annuation for distance (reshift)
         
         Parameters
         ----------
         flux : array of floats
             intrinic flux [erg/s]
-        var : array of floats
-            coresponding variance
 
         Returns
         -------
         flux_attenu : array of floats
             fluxes attenated fluxs  [erg/s/cm^2]
-        var_attenu : array of floats
-            coresponding variance
         
         """
         d_lum = self.cosmo.luminosity_distance(self.z).cgs.value #cm
         norm = 4.*np.pi * d_lum**2.
         flux_attenu = flux / norm
-        var_attenu = var / norm**2.
-        return flux_attenu, var_attenu
+        return flux_attenu
    
 
     def __call__(self, lines, params):
-        """Calculate line fluxes and variances for a set of emission lines
+        """Calculate line fluxes for a set of emission lines
         
         Parameters
         ----------
@@ -440,8 +430,6 @@ class BaseGalaxy(object):
         Returns:
         flux : array of floats, shape:(a,b)
             emission line fluxes, a:#bins b:#lines [erg/s/cm^2]
-        var : array of floats, shape:(a,b)
-            corresponding variances
 
         """
 
@@ -452,14 +440,14 @@ class BaseGalaxy(object):
         SFR = self.bin_SFR(params)
 
         #get line flux
-        flux, var = self.fluxgrid(lines, SFR, logZ, logU)
+        flux  = self.fluxgrid(lines, SFR, logZ, logU)
         #apply dust extinction
-        flux, var = self.apply_bin_extinction(lines, flux, var, params)
+        flux = self.apply_bin_extinction(lines, flux, params)
 
         #apply distance correction
-        flux, var = self.scale_flux_for_distance(flux, var)
+        flux = self.scale_flux_for_distance(flux)
 
-        return flux, var
+        return flux
 
 
 
@@ -781,7 +769,7 @@ if __name__ == '__main__':
             'tauV_out': 0.1,
             }
 
-    flux, var = gal(lines, params)
+    flux = gal(lines, params)
     logZ, logU = gal.bin_logZ_logU(params)
     tauV = gal._bin_tauV(params)
     coords = gal.bin_coord
