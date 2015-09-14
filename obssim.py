@@ -2,6 +2,8 @@ import numpy as np
 from scipy import sparse
 from scipy.spatial import cKDTree
 from astropy import wcs
+from astropy import constants as const
+from astropy import units
 
     
 class BaseObsSim(object):
@@ -20,6 +22,8 @@ class BaseObsSim(object):
             i.e. if False values normalized to number of pixels per bin
 
         """
+        self.conserve_flux = conserve_flux
+
         #Read only params
         self._galaxy = galaxy
         self._seeing = seeing
@@ -31,10 +35,10 @@ class BaseObsSim(object):
         #special
         self.__pixel_coord = None
         self.__pixel_coord_tree = None
-
-        self.conserve_flux = conserve_flux
-        self.pixel2bin = 
-        self.mapping_matrix = {} #store for flux mappings
+        
+        #store for flux mappings
+        self._gal2pix = {}
+        self._pix2bin = None
 
     # Make sure setup is read only as flux redistribution depends on them being fixed
     @property
@@ -98,16 +102,165 @@ class BaseObsSim(object):
             return self.__pixel_coord_tree
 
 
-    def _calc_pixel2bin_matrix(self):
-        """Constructs matrix mapping pixel to bins mulitplied by pixel area
+#    def _calc_pixel2bin_matrix(self):
+#        """Constructs matrix mapping pixel to bins mulitplied by pixel area
+#
+#        Notes
+#        -----
+#        if self.conserving_flux=False then bins are normalized to number of pixels contributing to the bin
+#
+#        Returns
+#        -------
+#        m : CSR sparse matrix
+#
+#        """
+#
+#        uniq_pixel_id = np.unique(self.pixel_id)
+#
+#        n_bins = len(uniq_pixel_id)
+#        n_pixels = len(self.pixel_id)
+#        area_mapper = np.zeros((n_bins, n_pixels), dtype=float)
+#
+#        for i, id_ in enumerate(uniq_pixel_id):
+#            mask = (self.pixel_id == id_)
+#            area_mapper[i][mask] = self.pixel_area[mask]
+#            if not self.conserve_flux: 
+#               area_mapper[i][mask] /= np.sum(mask) #conserve intensity
+#
+#        m = sparse.csr_matrix(area_mapper)
+#        return m
+#
+#
+#    def _calc_psf2pixel_matrix(self, wave):
+#        """Constructs matrix mapping galaxy sample elements image pixels
+#
+#        Calculates element -> pixel distances and computes PSF for each distance
+#
+#        Parameters
+#        ----------
+#        wave : float
+#            wavelength [Angstrom] at which PSF is computed
+#
+#        Returns
+#        -------
+#        m : CSR sparse matrix
+#
+#        """
+#        maxdist = self.seeing.radius_enclosing(0.995, wave)
+#
+#        #get distance between image pixels and galaxy bins
+#        m = self.pixel_coord_tree.sparse_distance_matrix(
+#                self.galaxy.bin_coord_tree, maxdist)
+#        m = m.tocsr()
+#
+#        #calc PSF at distances
+#        m.data[:] = self.seeing(m.data, wave)
+#
+#        return m
+#
+#
+#    def calc_mapping_matrix(self, line):
+#        """Constructs matrix mapping galaxy sample elements output bins
+#        
+#        Parameters
+#        ----------
+#        line : string
+#            emission line identification
+#
+#        Returns
+#        -------
+#        m : CSR sparse matrix
+#
+#        """
+#        wave = self.galaxy.get_obs_wave(line) #observed wavelength
+#
+#        #matrix mapping image pixels to image bins multiplied by pixel area
+#        pixel2bin = self._calc_pixel2bin_matrix()
+#
+#        #matrix mapping galaxy bins to image pixels redistributed according to
+#        #seeing
+#        psf2pixel = self._calc_psf2pixel_matrix(wave)
+#
+#        mapping_matrix = pixel2bin * psf2pixel
+#        return mapping_matrix
+#
+#
+#    def get_mapping_matrix(self, line):
+#        """Returns a matrix mapping galaxy sample elements output bins
+#
+#        Stores matrix for future iterations.
+#        
+#        Parameters
+#        ----------
+#        line : string
+#            emission line identification
+#
+#        Returns
+#        -------
+#        m : CSR sparse matrix
+#            flux transform
+#        m_var : CSR sparse matrix
+#            variance transform
+#
+#        """
+#        try:
+#            #check if already computed
+#            m = self.mapping_matrix[line]
+#            m_var = self.mapping_matrix[line+'_var']
+#        except KeyError:
+#            #if not, compute now
+#            m = self.calc_mapping_matrix(line)
+#            m_var = m.copy() #create var matrix
+#            m_var.data[:] = m_var.data ** 2.
+#            self.mapping_matrix[line] = m
+#            self.mapping_matrix[line+'_var'] = m_var
+#
+#        return m, m_var
 
-        Notes
-        -----
-        if self.conserving_flux=False then bins are normalized to number of pixels contributing to the bin
+
+    def _calc_gal2pix(self, line):
+        """Calculate matrix mapping flux from galaxy elements to sampling pixels
+
+        Calculates element -> pixel distances and computes PSF for each distance
+
+        Parameters
+        ----------
+        line : string
+            names identifying emission line
 
         Returns
         -------
-        m : CSR sparse matrix
+        map_flux : CSR sparse matrix
+            flux transform
+
+        """
+
+        wave = self.galaxy.get_obs_wave(line) #observed wavelength
+        maxdist = self.seeing.radius_enclosing(0.995, wave)
+
+        #get distance between image pixels and galaxy bins
+        map_flux = self.pixel_coord_tree.sparse_distance_matrix(
+                         self.galaxy.bin_coord_tree, maxdist)
+        map_flux = map_flux.tocsr()
+
+        #calc PSF at distances
+        map_flux.data[:] = self.seeing(map_flux.data, wave)
+
+        return map_flux
+
+
+    def _calc_pix2bin(self):
+        """Calculate matrix mapping flux from sample pixels to output bins
+
+        Notes
+        -----
+        if self.conserving_flux=False then bins are normalized to number of
+        pixels contributing to the bin
+
+        Returns
+        -------
+        map_flux : CSR sparse matrix
+            flux transform
 
         """
 
@@ -115,110 +268,69 @@ class BaseObsSim(object):
 
         n_bins = len(uniq_pixel_id)
         n_pixels = len(self.pixel_id)
-        area_mapper = np.zeros((n_bins, n_pixels), dtype=float)
+        map_flux = np.zeros((n_bins, n_pixels), dtype=float)
 
         for i, id_ in enumerate(uniq_pixel_id):
             mask = (self.pixel_id == id_)
-            area_mapper[i][mask] = self.pixel_area[mask]
+            map_flux[i][mask] = self.pixel_area[mask]
             if not self.conserve_flux: 
-               area_mapper[i][mask] /= np.sum(mask) #conserve intensity
+               #conserve intensity, normalize by number of pixels contributing
+               map_flux[i][mask] /= np.sum(mask)
 
-        m = sparse.csr_matrix(area_mapper)
-        return m
+        map_flux = sparse.csr_matrix(map_flux)
 
-    def _calc_psf2pixel_matrix(self, wave):
-        """Constructs matrix mapping galaxy sample elements image pixels
+        return map_flux
 
-        Calculates element -> pixel distances and computes PSF for each distance
 
-        Parameters
-        ----------
-        wave : float
-            wavelength [Angstrom] at which PSF is computed
+    def get_gal2pix(self, line):
+        """Matrix mapping flux from galaxy elements to sampling pixels
 
-        Returns
-        -------
-        m : CSR sparse matrix
-
-        """
-        maxdist = self.seeing.radius_enclosing(0.995, wave)
-
-        #get distance between image pixels and galaxy bins
-        m = self.pixel_coord_tree.sparse_distance_matrix(
-                self.galaxy.bin_coord_tree, maxdist)
-        m = m.tocsr()
-
-        #calc PSF at distances
-        m.data[:] = self.seeing(m.data, wave)
-
-        return m
-
-    def get_gal2pixel(self, line):
-        pass
-    def get_pixel2bin(self, line):
-        pass
-    
-
-    def calc_mapping_matrix(self, line):
-        """Constructs matrix mapping galaxy sample elements output bins
-        
         Parameters
         ----------
         line : string
-            emission line identification
+            names identifying emission line
 
         Returns
         -------
-        m : CSR sparse matrix
-
-        """
-        wave = self.galaxy.get_obs_wave(line) #observed wavelength
-
-        #matrix mapping image pixels to image bins multiplied by pixel area
-        pixel2bin = self._calc_pixel2bin_matrix()
-
-        #matrix mapping galaxy bins to image pixels redistributed according to
-        #seeing
-        psf2pixel = self._calc_psf2pixel_matrix(wave)
-
-        mapping_matrix = pixel2bin * psf2pixel
-        return mapping_matrix
-
-
-    def get_mapping_matrix(self, line):
-        """Returns a matrix mapping galaxy sample elements output bins
-
-        Stores matrix for future iterations.
-        
-        Parameters
-        ----------
-        line : string
-            emission line identification
-
-        Returns
-        -------
-        m : CSR sparse matrix
+        map_flux : CSR sparse matrix
             flux transform
-        m_var : CSR sparse matrix
-            variance transform
 
         """
-        try:
-            #check if already computed
-            m = self.mapping_matrix[line]
-            m_var = self.mapping_matrix[line+'_var']
-        except KeyError:
-            #if not, compute now
-            m = self.calc_mapping_matrix(line)
-            m_var = m.copy() #create var matrix
-            m_var.data[:] = m_var.data ** 2.
-            self.mapping_matrix[line] = m
-            self.mapping_matrix[line+'_var'] = m_var
 
-        return m, m_var
+        
+        try: #if already computed
+            map_flux = self._gal2pix[line]
 
+        except KeyError: #if not, compute now
+            map_flux = self._calc_gal2pix(line)
+        
+        return map_flux
+
+
+    def get_pix2bin(self):
+        """Matrices mapping sample pixels to output bins
+
+        Returns both mapping for both flux
+
+        Returns
+        -------
+        map_flux : CSR sparse matrix
+            flux transform
+
+        """
+        #check if already computed
+        if self._pix2bin is not None:
+            map_flux = self._pix2bin
+
+        else: #if not, compute now
+            map_flux = self._calc_pix2bin()
+            self._pix2bin = map_flux #store for next time
+
+        return map_flux
+    
+    
     def __call__(self, lines, params):
-        """Calculate line fluxes and variances for a set of emission lines
+        """Calculate line fluxes for a set of emission lines
         
         Parameters
         ----------
@@ -230,31 +342,30 @@ class BaseObsSim(object):
         Returns:
         flux : array of floats, shape:(a,b)
             emission line fluxes, a:#bins b:#lines [erg/s/cm^2]
-        var : array of floats, shape:(a,b)
-            corresponding variances
 
         """
 
-        uniq_pixel_id = np.unique(self.pixel_id)
-        n_bins = len(uniq_pixel_id)
         n_lines = len(lines)
 
-        flux = np.full((n_bins, n_lines), np.nan, dtype=float)
-        var = np.full((n_bins, n_lines), np.nan, dtype=float)
+        if len(model_err) != n_lines:
+            raise ValueError('length of model_err should match that of lines')
 
-        gal_flux, gal_var = self.galaxy(lines, params)
+        map_pix2bin  = self.get_pix2bin()
+        n_pix = map_pix2bin_flux.shape[1]
+
+        #initalize intermediate arrays
+        pix_flux = np.full((n_pix, n_lines), np.nan, dtype=float)
+
+        #calc galaxy model
+        gal_flux = self.galaxy(lines, params)
 
         for i_line, line in enumerate(lines):
-            flux_mapping, var_mapping = self.get_mapping_matrix(line)
-            flux[:,i_line] = flux_mapping.dot(gal_flux[:,i_line])
+            map_gal2pix = self.get_gal2pix(line)
+            pix_flux[:,i_line] = map_gal2pix.dot(gal_flux[:,i_line])
 
-            pix_flux = gal2pix.dot(gal_flux[:,i_line])
-            photons =flux_to_photons(pix_flux)
-            var = ?
-            flux[:,i_line] = pix2bin.dot(pix_flux)
-            var[:,i_line] = pix2bin.dot(pix_flux)
+        bin_flux = map_pix2bin_flux.dot(pix_flux)
 
-        return flux, var
+        return bin_flux
             
 
 class BinmapObsSim(BaseObsSim):
@@ -436,7 +547,7 @@ class ImageObsSim(BaseObsSim):
 
 
     def __call__(self, lines, params):
-        """Calculate line fluxes and variances for a set of emission lines
+        """Calculate line fluxes for a set of emission lines
         
         Parameters
         ----------
@@ -448,16 +559,13 @@ class ImageObsSim(BaseObsSim):
         Returns:
         flux : array of floats, shape:(nx,ny,nl)
             emission line fluxes, nx,ny=shape nl:#lines [erg/s/cm^2]
-        var : array of floats, shape:(a,b)
-            corresponding variances
 
         """
 
-        flux, var = super(ImageObsSim, self).__call__(lines, params)
+        flux = super(ImageObsSim, self).__call__(lines, params)
         flux = flux.reshape(self.shape + (len(lines),))
-        var = var.reshape(self.shape + (len(lines),))
 
-        return flux, var
+        return flux
 
 
 
@@ -497,7 +605,7 @@ if __name__ == '__main__':
         'tauV_out': 0.1,
         }
 
-    flux, var = obssim(lines, params)
+    flux = obssim(lines, params)
     
     logZ, logU = gal.bin_logZ_logU(params)
 
