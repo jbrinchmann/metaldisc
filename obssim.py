@@ -303,6 +303,7 @@ class BaseObsSim(object):
 
         except KeyError: #if not, compute now
             map_flux = self._calc_gal2pix(line)
+            self._gal2pix[line] = map_flux
         
         return map_flux
 
@@ -347,11 +348,8 @@ class BaseObsSim(object):
 
         n_lines = len(lines)
 
-        if len(model_err) != n_lines:
-            raise ValueError('length of model_err should match that of lines')
-
         map_pix2bin  = self.get_pix2bin()
-        n_pix = map_pix2bin_flux.shape[1]
+        n_pix = map_pix2bin.shape[1]
 
         #initalize intermediate arrays
         pix_flux = np.full((n_pix, n_lines), np.nan, dtype=float)
@@ -363,7 +361,7 @@ class BaseObsSim(object):
             map_gal2pix = self.get_gal2pix(line)
             pix_flux[:,i_line] = map_gal2pix.dot(gal_flux[:,i_line])
 
-        bin_flux = map_pix2bin_flux.dot(pix_flux)
+        bin_flux = map_pix2bin.dot(pix_flux)
 
         return bin_flux
             
@@ -582,7 +580,7 @@ if __name__ == '__main__':
 
 
     lines = ['O2-3727', 'O2-3729', 'Hg', 'Hb', 'O3-5007']
-    fluxgrid = FluxGrid('grids/grid_Dopita13_kappa=inf.h5', lines, 0.04)
+    fluxgrid = FluxGrid('grids/grid_Dopita13_kappa=inf.h5', lines)
 
     cosmo = FlatLambdaCDM(H0=70., Om0=0.3)
     gal = GalaxyDisc(338.24124, -60.563644, 0.427548, 0., 0., 3., 45, cosmo, fluxgrid)
@@ -592,7 +590,7 @@ if __name__ == '__main__':
     beta = np.array([2.6, 2.6, 2.6])
     moffat = MoffatSeeing(wave, fwhm, beta)
 
-    binmap = fits.open('/data2/MUSE/metallicity_analysis/spectra_extraction/v03p1/0020/binmap-image.fits')[1]
+    binmap = fits.open('/data2/MUSE/metallicity_analysis/spectra_extraction/old/v03p1/0020/binmap-image.fits')[1]
     obssim = BinmapObsSim(binmap, gal, moffat, conserve_flux=False)
 
     params = {
@@ -614,8 +612,8 @@ if __name__ == '__main__':
     for i in xrange(len(lines)):
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        im = ax.imshow(flux[:,i].reshape(binmap.data.shape), interpolation='nearest',
-                       origin='lower')
+        im = ax.imshow(flux[:,i].reshape(binmap.data.shape),
+                interpolation='nearest', origin='lower', cmap='YlGnBu')
         ax.set_title(lines[i])
         plt.colorbar(im)
     plt.show()
