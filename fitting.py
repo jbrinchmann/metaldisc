@@ -80,7 +80,7 @@ class MultinestFitting(object):
             model to be fitted
         model_err : array of floats
             systematic error to add to model fluxes
-            array must match line list
+            array must match flattened line list
         likelihood : string [default='student']
             type of likelihood function to use
             (options: 'student', 'gaussian')
@@ -98,9 +98,6 @@ class MultinestFitting(object):
         if flux.shape[1] != len(lines):
             raise Exception("2nd dimension of flux must match len(lines)")
 
-        if len(model_err) != len(lines):
-            raise Exception("len(lines) must equal len(model_err)")
-
         if likelihood == 'student':
             self.loglikelihood = self._student_loglikelihood
             try:
@@ -112,16 +109,22 @@ class MultinestFitting(object):
         else:
             raise Exception("likelihood function '%s' unknown" % likelihood)
         
-        lines, line_mapping = self.parse_lines(lines)
-        self.lines = lines
-        self.line_mapping = line_mapping
 
         self.obs_flux = flux
         self.obs_var = var
 
-        self.model_err = model_err
-
         self.obssim = obssim
+
+
+        lines, line_mapping = self.parse_lines(lines)
+        if len(model_err) != line_mapping.shape[1]:
+            raise Exception("len(model_err) must equal number of lines")
+
+        self.lines = lines
+
+        self.line_mapping_flux = line_mapping
+        self.line_mapping_var = (line_mapping * model_err) ** 2.
+
 
 
     @staticmethod
@@ -270,9 +273,7 @@ class MultinestFitting(object):
 
 
     def multinest_loglike(self, cube, ndim, nparams):
-        model_flux = self.model(cube)
-
-        model_var = (model_flux * self.model_err) ** 2.
+        model_flux, model_var = self.model(cube)
 
         loglike = self.loglikelihood(self.obs_flux, model_flux,
                                      self.obs_var, model_var)
@@ -283,12 +284,13 @@ class MultinestFitting(object):
     def model(self, cube):
         params = self.cube_to_params(cube)
 
-        model_flux = self.obssim(self.lines, params)
-        model_flux /= 1e-20
+        flux = self.obssim(self.lines, params)
+        flux /= 1e-20
 
-        model_flux = np.dot(self.line_mapping, model_flux.T).T
+        model_flux = np.dot(self.line_mapping_flux, flux.T).T
+        model_var = np.dot(self.line_mapping_var, (flux**2.).T).T
 
-        return model_flux
+        return model_flux, model_var
 
 
     def multinest_run(self, basename):
