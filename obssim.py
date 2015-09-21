@@ -37,8 +37,9 @@ class BaseObsSim(object):
         self.__pixel_coord_tree = None
         
         #store for flux mappings
-        self._gal2pix = {}
         self._pix2bin = None
+        self._gal2pix = {}
+        self._gal2bin = {}
 
     # Make sure setup is read only as flux redistribution depends on them being fixed
     @property
@@ -218,6 +219,45 @@ class BaseObsSim(object):
 #        return m, m_var
 
 
+    def _calc_pix2bin(self):
+        """Calculate matrix mapping flux from sample pixels to output bins
+
+        Notes
+        -----
+        if self.conserving_flux=False then bins are normalized to number of
+        pixels contributing to the bin
+
+        Returns
+        -------
+        map_flux : CSR sparse matrix
+            flux transform
+
+        """
+
+        #check if already computed
+        if self._pix2bin is not None:
+            map_flux = self._pix2bin
+
+        else: #if not, compute now
+            uniq_pixel_id = np.unique(self.pixel_id)
+
+            n_bins = len(uniq_pixel_id)
+            n_pixels = len(self.pixel_id)
+            map_flux = np.zeros((n_bins, n_pixels), dtype=float)
+
+            for i, id_ in enumerate(uniq_pixel_id):
+                mask = (self.pixel_id == id_)
+                map_flux[i][mask] = self.pixel_area[mask]
+                if not self.conserve_flux: 
+                   #conserve intensity, normalize by number of pixels contributing
+                   map_flux[i][mask] /= np.sum(mask)
+
+            map_flux = sparse.csr_matrix(map_flux)
+            self._pix2bin = map_flux #store for next time
+
+        return map_flux
+
+
     def _calc_gal2pix(self, line):
         """Calculate matrix mapping flux from galaxy elements to sampling pixels
 
@@ -246,6 +286,20 @@ class BaseObsSim(object):
         #calc PSF at distances
         map_flux.data[:] = self.seeing(map_flux.data, wave)
 
+        return map_flux
+
+
+    def get_gal2bin(self, line):
+
+        try: #if already computed
+            map_flux = self._gal2bin[line]
+
+        except KeyError: #if not, compute now
+            pix2bin = self._calc_pix2bin()
+            gal2pix = self._calc_gal2pix(line)
+            map_flux = pix2bin.dot(gal2pix)
+            self._gal2bin[line] = map_flux
+        
         return map_flux
 
 
@@ -282,53 +336,8 @@ class BaseObsSim(object):
         return map_flux
 
 
-    def get_gal2pix(self, line):
-        """Matrix mapping flux from galaxy elements to sampling pixels
-
-        Parameters
-        ----------
-        line : string
-            names identifying emission line
-
-        Returns
-        -------
-        map_flux : CSR sparse matrix
-            flux transform
-
-        """
-
-        
-        try: #if already computed
-            map_flux = self._gal2pix[line]
-
-        except KeyError: #if not, compute now
-            map_flux = self._calc_gal2pix(line)
-            self._gal2pix[line] = map_flux
-        
-        return map_flux
 
 
-    def get_pix2bin(self):
-        """Matrices mapping sample pixels to output bins
-
-        Returns both mapping for both flux
-
-        Returns
-        -------
-        map_flux : CSR sparse matrix
-            flux transform
-
-        """
-        #check if already computed
-        if self._pix2bin is not None:
-            map_flux = self._pix2bin
-
-        else: #if not, compute now
-            map_flux = self._calc_pix2bin()
-            self._pix2bin = map_flux #store for next time
-
-        return map_flux
-    
     
     def __call__(self, lines, params):
         """Calculate line fluxes for a set of emission lines
@@ -348,20 +357,18 @@ class BaseObsSim(object):
 
         n_lines = len(lines)
 
-        map_pix2bin  = self.get_pix2bin()
-        n_pix = map_pix2bin.shape[1]
+        map_pix2bin = self._calc_pix2bin()
+        n_bins = map_pix2bin.shape[0]
 
         #initalize intermediate arrays
-        pix_flux = np.full((n_pix, n_lines), np.nan, dtype=float)
+        bin_flux = np.full((n_bins, n_lines), np.nan, dtype=float)
 
         #calc galaxy model
         gal_flux = self.galaxy(lines, params)
 
         for i_line, line in enumerate(lines):
-            map_gal2pix = self.get_gal2pix(line)
-            pix_flux[:,i_line] = map_gal2pix.dot(gal_flux[:,i_line])
-
-        bin_flux = map_pix2bin.dot(pix_flux)
+            map_gal2bin = self.get_gal2bin(line)
+            bin_flux[:,i_line] = map_gal2bin.dot(gal_flux[:,i_line])
 
         return bin_flux
             
