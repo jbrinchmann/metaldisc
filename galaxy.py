@@ -254,12 +254,16 @@ class BaseGalaxy(object):
 
         try:
             Z_in = params['Z_in']
-            Z_out = params['Z_out']
+            dZ = params['dZ'] #dex/kpc
+            #Z_out = params['Z_out']
         except KeyError, e:
             print "Parameter '{0}' not found".format(e.message)
             raise
 
-        logZ = (Z_out-Z_in) * self.radius + Z_in
+        r = self.radius / self.cosmo.arcsec_per_kpc_proper(self.z).value
+        logZ = dZ * r + Z_in
+
+#        logZ = (Z_out-Z_in) * self.radius + Z_in
         return logZ
 
 
@@ -348,12 +352,15 @@ class BaseGalaxy(object):
         """
         try:
             tauV_in = params['tauV_in']
-            tauV_out = params['tauV_out']
+            dtauV = params['dtauV']
+            #tauV_out = params['tauV_out']
         except KeyError, e:
             print "Parameter '{0}' not found".format(e.message)
             raise
 
-        tauV = (tauV_out-tauV_in) * self.radius + tauV_in
+        r = self.radius / self.cosmo.arcsec_per_kpc_proper(self.z).value
+        tauV = dtauV * r + tauV_in
+#        tauV = (tauV_out-tauV_in) * self.radius + tauV_in
 
         tauV = np.clip(tauV, 0., None) # no negative values
 

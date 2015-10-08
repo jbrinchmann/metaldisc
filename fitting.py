@@ -221,8 +221,10 @@ class MultinestFitting(object):
 
     
     def multinest_prior(self, cube, ndim, nparams):
+
         #SFRtotal
-        cube[0] = logarithmic_prior(cube[0], 0.01, 100.)
+        cube[0] = linear_prior(cube[0], 0., 100.)
+#        cube[0] = logarithmic_prior(cube[0], 0.01, 100.)
 
         #r_d
         cube[1] = linear_prior(cube[1], 0., 2.)
@@ -239,8 +241,10 @@ class MultinestFitting(object):
         #Z_in
         cube[2] = linear_prior(cube[2], logZ_min, logZ_max)
 
-        #Z_out
-        cube[3] = linear_prior(cube[3], logZ_min, logZ_max)
+        #dZ
+        cube[3] = linear_prior(cube[3], -0.5, 0.5)
+#        #Z_out
+#        cube[3] = linear_prior(cube[3], logZ_min, logZ_max)
 
         #logU_0
 #        print "CHECK THIS"
@@ -255,8 +259,10 @@ class MultinestFitting(object):
         #tauV_in
         cube[5] = linear_prior(cube[5], 0., 4.)
 
-        #tauV_out
-        cube[6] = linear_prior(cube[6], 0., 4.)
+        #dZ
+        cube[6] = linear_prior(cube[6], -0.5, 0.5)
+#        #tauV_out
+#        cube[6] = linear_prior(cube[6], 0., 4.)
 
 
     @staticmethod
@@ -265,10 +271,12 @@ class MultinestFitting(object):
         params['SFRtotal'] = cube[0]
         params['r_d'] = cube[1]
         params['Z_in'] = cube[2]
-        params['Z_out'] = cube[3]
+        params['dZ'] = cube[3]
+#        params['Z_out'] = cube[3]
         params['logU_0'] = cube[4]
         params['tauV_in'] = cube[5]
-        params['tauV_out'] = cube[6]
+        params['dtauV'] = cube[6]
+#        params['tauV_out'] = cube[6]
         return params
 
 
@@ -294,8 +302,8 @@ class MultinestFitting(object):
 
 
     def multinest_run(self, basename):
-        parameters = ["SFRtotal", "r_d", "Z_in", 'Z_out', "logU_0",
-                      "tauV_in", "tauV_out"]
+        parameters = ["SFRtotal", "r_d", "Z_in", 'dZ', "logU_0",
+                      "tauV_in", "dtauV"]
         n_params = len(parameters)
 
         pymultinest.run(self.multinest_loglike, self.multinest_prior, n_params,
