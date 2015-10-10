@@ -233,8 +233,6 @@ class MultinestFitting(object):
         fluxgrid = self.obssim.galaxy.fluxgrid
         logZ_min = fluxgrid.logZ_min
         logZ_max = fluxgrid.logZ_max
-        logZ_solar = fluxgrid.logZ_solar
-
         logU_min = fluxgrid.logU_min
         logU_max = fluxgrid.logU_max
         
@@ -248,21 +246,19 @@ class MultinestFitting(object):
 
         #logU_0
 #        print "CHECK THIS"
-        logU_0_max = logU_max + 0.8 * (logZ_max-logZ_solar)
-        logU_0_min = logU_min + 0.8 * (logZ_min-logZ_solar)
+        logU_0_max = logU_max + 0.8 * logZ_max
+        logU_0_min = logU_min + 0.8 * logZ_min
 
-#        print logZ_min, logZ_max
-#        print logU_min, logU_max
-#        print logU_0_min, logU_0_max
+        print logZ_min, logZ_max
+        print logU_min, logU_max
+        print logU_0_min, logU_0_max
         cube[4] = linear_prior(cube[4], logU_0_min, logU_0_max)
 
         #tauV_in
         cube[5] = linear_prior(cube[5], 0., 4.)
 
-        #dZ
+        #dtauV
         cube[6] = linear_prior(cube[6], -0.5, 0.5)
-#        #tauV_out
-#        cube[6] = linear_prior(cube[6], 0., 4.)
 
 
     @staticmethod
@@ -270,13 +266,11 @@ class MultinestFitting(object):
         params = OrderedDict()
         params['SFRtotal'] = cube[0]
         params['r_d'] = cube[1]
-        params['Z_in'] = cube[2]
-        params['dZ'] = cube[3]
-#        params['Z_out'] = cube[3]
-        params['logU_0'] = cube[4]
-        params['tauV_in'] = cube[5]
+        params['logZ_0'] = cube[2]
+        params['dlogZ'] = cube[3]
+        params['logU_sol'] = cube[4]
+        params['tauV_0'] = cube[5]
         params['dtauV'] = cube[6]
-#        params['tauV_out'] = cube[6]
         return params
 
 
@@ -302,8 +296,8 @@ class MultinestFitting(object):
 
 
     def multinest_run(self, basename):
-        parameters = ["SFRtotal", "r_d", "Z_in", 'dZ', "logU_0",
-                      "tauV_in", "dtauV"]
+        parameters = ["SFRtotal", "r_d", "logZ_0", 'dlogZ', "logU_sol",
+                      "tauV_0", "dtauV"]
         n_params = len(parameters)
 
         pymultinest.run(self.multinest_loglike, self.multinest_prior, n_params,

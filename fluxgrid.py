@@ -32,7 +32,7 @@ class FluxGrid(object):
         self.flux_intp = RegularGridInterpolator(dims[:2], fluxes,
                 method='linear', bounds_error=True)
 
-        self.logZ_solar = fh['logZ_solar'][()]
+        self.OH_solar = fh['OH_solar'][()] #12 + log(O/H) solar value
 
         #Close open hdf5 resources
         fh.flush()
@@ -152,12 +152,12 @@ class FluxGrid(object):
         
     @property
     def logZ_min(self):
-        """Min logZ value spanned by grid [12+log10(O/H)]"""
+        """Min logZ value spanned by grid [relative to solar]"""
         return np.min(self.logZ)
 
     @property
     def logZ_max(self):
-        """Max logZ value spanned by grid [12+log10(O/H)]"""
+        """Max logZ value spanned by grid [relative to solar]"""
         return np.max(self.logZ)
 
     @property

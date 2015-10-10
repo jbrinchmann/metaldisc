@@ -603,15 +603,15 @@ if __name__ == '__main__':
     params = {
         'SFRtotal': 1.,
         'r_d': 0.5,
-        'Z_in': 9.0,
-        'Z_out': 8.9,
-        'logU_0': -3.,
-        'tauV_in': 0.2,
-        'tauV_out': 0.1,
+        'logZ_0': 0.25,
+        'dlogZ': -0.04,
+        'logU_sol': -3.,
+        'tauV_0': 0.7,
+        'dtauV': -0.04,
         }
 
     flux = obssim(lines, params)
-    
+
     logZ, logU = gal.bin_logZ_logU(params)
 
     import matplotlib.pyplot as plt

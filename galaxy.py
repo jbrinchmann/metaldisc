@@ -240,30 +240,28 @@ class BaseGalaxy(object):
         ----------
         params : dict
             Dictionary containing the following:
-            Z_in : float
+            logZ_0 : float
                 metallicity at galaxy centre
-            Z_out : float
-                metallicity at one arcsec from galaxy centre
+            dlogZ : float
+                metallicity gradient in dex/kpc
 
         Returns
         -------
         logZ : array of floats
-            Oxygen abundance of each bin [12 + log10(O/H)]
+            Oxygen abundance of each bin [relative to solar]
         
         """
 
         try:
-            Z_in = params['Z_in']
-            dZ = params['dZ'] #dex/kpc
-            #Z_out = params['Z_out']
+            logZ_0 = params['logZ_0']
+            dlogZ = params['dlogZ'] #dex/kpc
         except KeyError, e:
             print "Parameter '{0}' not found".format(e.message)
             raise
 
         r = self.radius / self.cosmo.arcsec_per_kpc_proper(self.z).value
-        logZ = dZ * r + Z_in
+        logZ = dlogZ * r + logZ_0
 
-#        logZ = (Z_out-Z_in) * self.radius + Z_in
         return logZ
 
 
@@ -276,10 +274,10 @@ class BaseGalaxy(object):
         Parameters
         ----------
         logZ : array of floats
-            metallicity of each bin
+            metallicity of each bin [relative to solar]
         params : dict
             Dictionary containing the following:
-            logU_0 : float
+            logU_sol : float
                 ionization paramter at solar metallicity
 
         Returns
@@ -290,13 +288,12 @@ class BaseGalaxy(object):
         """
 
         try:
-            logU_0 = params['logU_0']
+            logU_0 = params['logU_sol']
         except KeyError, e:
             print "Parameter '{0}' not found".format(e.message)
             raise
 
-        logZ_0 = self.fluxgrid.logZ_solar
-        logU = -0.8 * (logZ-logZ_0) + logU_0
+        logU = -0.8 * logZ + logU_0
 
         return logU
 
@@ -316,7 +313,7 @@ class BaseGalaxy(object):
         Returns
         -------
         logZ : array of floats
-            Oxygen abundance of each bin [12 + log10(O/H)]
+            Oxygen abundance of each bin [relative to solar]
         logU : array of floats
             Dimensionless Ionization parameter of each bin
         
@@ -340,27 +337,25 @@ class BaseGalaxy(object):
         params : dict
             Dictionary containing the following:
             tauV_in : float
-                V-band dust extinction at galaxy centre
+                V-band optical depth at galaxy centre
             tauV_out : float
-                V-band dust extinction at one arcsec from galaxy centre
+                V-band optical depth gradient [1/kpc]
 
         Returns
         -------
         tauV : array of floats
-            Oxygen abundance of each bin [12 + log10(O/H)]
+            optical depth of each bin
         
         """
         try:
-            tauV_in = params['tauV_in']
+            tauV_0 = params['tauV_0']
             dtauV = params['dtauV']
-            #tauV_out = params['tauV_out']
         except KeyError, e:
             print "Parameter '{0}' not found".format(e.message)
             raise
 
         r = self.radius / self.cosmo.arcsec_per_kpc_proper(self.z).value
-        tauV = dtauV * r + tauV_in
-#        tauV = (tauV_out-tauV_in) * self.radius + tauV_in
+        tauV = dtauV * r + tauV_0
 
         tauV = np.clip(tauV, 0., None) # no negative values
 

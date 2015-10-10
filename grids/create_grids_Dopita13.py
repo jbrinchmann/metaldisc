@@ -154,8 +154,7 @@ if __name__ == '__main__':
     for kappa in [10, 20, 50, 'inf']:
         Z, logq, lines, flux = load_data(kappa)
 
-        Z_solar = 8.69 # 2013ApJS..208...10D
-        logZ = np.log10(Z) + Z_solar
+        logZ = np.log10(Z)
 
         cspeed = 29979245800. #speed of light in cm
         logU = logq - np.log10(cspeed)
@@ -168,11 +167,11 @@ if __name__ == '__main__':
         filename = 'grid_Dopita13_kappa='+str(kappa)+'.h5'
 
         fh = create_file(filename, logZ, logU, lines, flux)
-        fh['logZ_solar'] = Z_solar
+        fh['OH_solar'] = 8.69 # 2013ApJS..208...10D
 
-        fh['logZ'].attrs['units'] = '12 + log10(O/H)'
+        fh['logZ'].attrs['units'] = 'Z_solar'
         fh['line_wave'].attrs['units'] = 'A'
-        fh['logZ_solar'].attrs['units'] = '12 + log10(O/H)'
+        fh['OH_solar'].attrs['units'] = '12 + log10(O/H)'
         fh['flux'].attrs['units'] = 'erg/s'
 
         fh.flush()
