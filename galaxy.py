@@ -349,13 +349,14 @@ class BaseGalaxy(object):
         """
         try:
             tauV_0 = params['tauV_0']
-            dtauV = params['dtauV']
+#            dtauV = params['dtauV']
         except KeyError, e:
             print "Parameter '{0}' not found".format(e.message)
             raise
 
-        r = self.radius / self.cosmo.arcsec_per_kpc_proper(self.z).value
-        tauV = dtauV * r + tauV_0
+#        r = self.radius / self.cosmo.arcsec_per_kpc_proper(self.z).value
+#        tauV = dtauV * r + tauV_0
+        tauV = np.full_like(self.radius, tauV_0)
 
         tauV = np.clip(tauV, 0., None) # no negative values
 
