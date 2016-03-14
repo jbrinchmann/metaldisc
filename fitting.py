@@ -9,16 +9,16 @@ from matplotlib import gridspec
 
 import pymultinest
 
+import galaxy
 
-def linear_prior(x, low, upp):
+
+def linear_prior(low, upp):
     """Linear prior
 
     Maps x [0-1] uniformly between low and upp
 
     Parameters
     ----------
-    x : float [between 0 and 1]
-        percentile
     low : float
         lower limit of range
     upp : float
@@ -26,23 +26,23 @@ def linear_prior(x, low, upp):
 
     Returns
     -------
-    y : float
+    y : function that takes one argument
+        x : float [between 0 and 1]
+            percentile
 
     """
 
-    y = (upp-low) * x + low
+    y = lambda x: (upp-low) * x + low
     return y
 
 
-def logarithmic_prior(x, low, upp):
+def logarithmic_prior(low, upp):
     """Logarithmic prior
 
     Maps x [0-1] logarithmically between low and upp
 
     Parameters
     ----------
-    x : float [between 0 and 1]
-        percentile
     low : float
         lower limit of range
     upp : float
@@ -50,20 +50,22 @@ def logarithmic_prior(x, low, upp):
 
     Returns
     -------
-    y : float
+    y : function that takes one argument
+        x : float [between 0 and 1]
+            percentile
 
     """
 
     l_low = np.log10(low)
     l_upp = np.log10(upp)
-    y = 10. ** ((l_upp-l_low) * x + l_low)
+    y = lambda x: 10. ** ((l_upp-l_low) * x + l_low)
     return y
 
 
 class MultinestFitting(object):
 
-    def __init__(self, lines, flux, var, obssim, model_err, likelihood='student',
-            **kwargs):
+    def __init__(self, lines, flux, var, obssim, model_err,
+            likelihood='student', **kwargs):
         """Fitting object for ObsSim and data
 
         Parameters
@@ -114,7 +116,16 @@ class MultinestFitting(object):
         self.obs_var = var
 
         self.obssim = obssim
-
+        
+        self.params = OrderedDict()
+        if isinstance(obssim.galaxy, galaxy.GalaxyDisc):
+            self.init_galdisc_params()
+        elif isinstance(obssim.galaxy, galaxy.GalaxyMap):
+            self.init_galmap_params()
+        else:
+            raise Exception('Galaxy model %s unknown' % str(obssim.galaxy))
+        self.init_basegal_params()
+            
 
         lines, line_mapping = self.parse_lines(lines)
         if len(model_err) != line_mapping.shape[1]:
@@ -219,59 +230,46 @@ class MultinestFitting(object):
         
         return out
 
+
+    def init_galdisc_params(self):
+
+        self.params['SFRtotal'] = linear_prior(0., 100.)
+        self.params['r_d'] = linear_prior(0., 2.)
+
+    def init_galmap_params(self):
+
+        self.params['SFRtotal'] = linear_prior(0., 100.)
     
-    def multinest_prior(self, cube, ndim, nparams):
-
-        #SFRtotal
-        cube[0] = linear_prior(cube[0], 0., 100.)
-#        cube[0] = logarithmic_prior(cube[0], 0.01, 100.)
-
-        #r_d
-        cube[1] = linear_prior(cube[1], 0., 2.)
+    def init_basegal_params(self):
 
         #get fluxgrid range in logZ and logU
         fluxgrid = self.obssim.galaxy.fluxgrid
+
         logZ_min = fluxgrid.logZ_min
         logZ_max = fluxgrid.logZ_max
+
         logU_min = fluxgrid.logU_min
         logU_max = fluxgrid.logU_max
-        
-        #Z_in
-        cube[2] = linear_prior(cube[2], logZ_min, logZ_max)
 
-        #dZ
-        cube[3] = linear_prior(cube[3], -0.5, 0.5)
-#        #Z_out
-#        cube[3] = linear_prior(cube[3], logZ_min, logZ_max)
-
-        #logU_0
-#        print "CHECK THIS"
         logU_0_max = logU_max + 0.8 * logZ_max
         logU_0_min = logU_min + 0.8 * logZ_min
 
-        #print logZ_min, logZ_max
-        #print logU_min, logU_max
-        #print logU_0_min, logU_0_max
-        cube[4] = linear_prior(cube[4], logU_0_min, logU_0_max)
+        self.params['logZ_0'] = linear_prior(logZ_min, logZ_max)
+        self.params['dlogZ'] = linear_prior(-0.5, 0.5)
+        self.params['logU_sol'] = linear_prior(logU_0_min, logU_0_max)
+        self.params['tauV_0'] = linear_prior(0., 4.)
+        
+    
+    def multinest_prior(self, cube, ndim, nparams):
 
-        #tauV_0
-        cube[5] = linear_prior(cube[5], 0., 4.)
-
-#        #dtauV
-#        cube[6] = linear_prior(cube[6], -0.5, 0.5)
+        for i_param, prior_func in enumerate(self.params.itervalues()):
+            cube[i_param] = prior_func(cube[i_param])
 
 
+    def cube_to_params(self, cube):
+        
+        params = OrderedDict(zip(self.params, cube))
 
-    @staticmethod
-    def cube_to_params(cube):
-        params = OrderedDict()
-        params['SFRtotal'] = cube[0]
-        params['r_d'] = cube[1]
-        params['logZ_0'] = cube[2]
-        params['dlogZ'] = cube[3]
-        params['logU_sol'] = cube[4]
-        params['tauV_0'] = cube[5]
-#        params['dtauV'] = cube[6]
         return params
 
 
@@ -297,8 +295,7 @@ class MultinestFitting(object):
 
 
     def multinest_run(self, basename):
-        parameters = ["SFRtotal", "r_d", "logZ_0", 'dlogZ', "logU_sol",
-                      "tauV_0"]#, "dtauV"]
+        parameters = [i for i in self.params.iterkeys()]
         n_params = len(parameters)
 
         pymultinest.run(self.multinest_loglike, self.multinest_prior, n_params,
