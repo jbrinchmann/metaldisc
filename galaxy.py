@@ -31,7 +31,7 @@ class BaseGalaxy(object):
         self._ra = ra
         self._dec = dec
         self._fluxgrid = fluxgrid
-        self._dustmodel = dustmodel
+        self._dust_model = dust_model
         if (z < 0.):
             raise Exception("Reshift must be greater than zero")
         self._z = z
@@ -757,7 +757,7 @@ class GalaxyDiscFixedrd(GalaxyDisc):
 
 
 class GalaxyMap(BaseGalaxy):
-    def __init__(self, sfrmap, ra, dec, z, pa, inc, cosmo, fluxgrid, dust_model
+    def __init__(self, sfrmap, ra, dec, z, pa, inc, cosmo, fluxgrid, dust_model,
             oversample=1):  
         """2D Galaxy model using a SFR map
         
@@ -888,9 +888,6 @@ class GalaxyMap(BaseGalaxy):
         SFR *= (SFRtotal / np.sum(SFR))
         
         return SFR
-
-
-def create_galaxy(
 
 
 
