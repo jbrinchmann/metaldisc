@@ -139,29 +139,26 @@ class MultinestFitting(object):
         self.line_mapping_var = (line_mapping * model_err) ** 2.
 
 
-
     @staticmethod
     def parse_lines(lines):
         """Given a nested line list create a flat list of lines and associated mapping matrix
         
         """
-        lines_flat = []
-        coadd = []
-        
-        for i_out, line in enumerate(lines):
-            if type(line) in [list, tuple]:
-                lines_flat += line
-                coadd += [i_out]*len(line)
-            elif type(line) == str:
-                lines_flat.append(line)
-                coadd.append(i_out)
-            else:
-                raise Exception("Line names should be strings")
 
-        lines_flat = tuple(lines_flat) #convert list to tuple
+
+        #flatten linelist and MAKE IT UNIQUE
+        lines_flat = OrderedDict()
+        for line_components in lines:
+            for l in line_components:
+                lines_flat[l] = None
+        lines_flat = tuple(lines_flat.keys())
+
         mapping = np.zeros([len(lines),len(lines_flat)], dtype=float)
-        for j_in, i_out in enumerate(coadd):
-            mapping[i_out,j_in] = 1.
+        for i_out, line_components in enumerate(lines):
+            for l in line_components:
+                j_in = lines_flat.index(l)
+                mapping[i_out,j_in] = 1.
+
 
         return lines_flat, mapping
 
