@@ -118,11 +118,9 @@ class MultinestFitting(object):
         self.obssim = obssim
         
         self.params = OrderedDict()
-        if type(obssim.galaxy) == galaxy.GalaxyDisc:
+        if isinstance(obssim.galaxy, galaxy.GalaxyDisc):
             self.init_galdisc_params()
-        elif type(obssim.galaxy) == galaxy.GalaxyDiscFixedrd:
-            self.init_galdisc_fixedrd_params()
-        elif type(obssim.galaxy) == galaxy.GalaxyMap:
+        elif isinstance(obssim.galaxy, galaxy.GalaxyMap):
             self.init_galmap_params()
         else:
             raise Exception('Galaxy model %s unknown' % str(obssim.galaxy))
@@ -145,21 +143,23 @@ class MultinestFitting(object):
         """Given a nested line list create a flat list of lines and associated mapping matrix
         
         """
+        lines_flat = []
+        coadd = []
+        
+        for i_out, line in enumerate(lines):
+            if type(line) in [list, tuple]:
+                lines_flat += line
+                coadd += [i_out]*len(line)
+            elif type(line) == str:
+                lines_flat.append(line)
+                coadd.append(i_out)
+            else:
+                raise Exception("Line names should be strings")
 
-
-        #flatten linelist and MAKE IT UNIQUE
-        lines_flat = OrderedDict()
-        for line_components in lines:
-            for l in line_components:
-                lines_flat[l] = None
-        lines_flat = tuple(lines_flat.keys())
-
+        lines_flat = tuple(lines_flat) #convert list to tuple
         mapping = np.zeros([len(lines),len(lines_flat)], dtype=float)
-        for i_out, line_components in enumerate(lines):
-            for l in line_components:
-                j_in = lines_flat.index(l)
-                mapping[i_out,j_in] = 1.
-
+        for j_in, i_out in enumerate(coadd):
+            mapping[i_out,j_in] = 1.
 
         return lines_flat, mapping
 
@@ -233,19 +233,12 @@ class MultinestFitting(object):
 
     def init_galdisc_params(self):
 
-#        self.params['SFRtotal'] = linear_prior(0., 100.)
-        self.params['SFRtotal'] = logarithmic_prior(0.01, 100)
+        self.params['SFRtotal'] = linear_prior(0., 100.)
         self.params['r_d'] = linear_prior(0., 2.)
-
-    def init_galdisc_fixedrd_params(self):
-
-#        self.params['SFRtotal'] = linear_prior(0., 100.)
-        self.params['SFRtotal'] = logarithmic_prior(0.01, 100)
 
     def init_galmap_params(self):
 
-#        self.params['SFRtotal'] = linear_prior(0., 100.)
-        self.params['SFRtotal'] = logarithmic_prior(0.01, 100)
+        self.params['SFRtotal'] = linear_prior(0., 100.)
     
     def init_basegal_params(self):
 
