@@ -118,9 +118,9 @@ class MultinestFitting(object):
         self.obssim = obssim
         
         self.params = OrderedDict()
-        if isinstance(obssim.galaxy, galaxy.GalaxyDisc):
+        if type(obssim.galaxy) == galaxy.GalaxyDisc:
             self.init_galdisc_params()
-        elif isinstance(obssim.galaxy, galaxy.GalaxyMap):
+        elif type(obssim.galaxy) == galaxy.GalaxyMap:
             self.init_galmap_params()
         else:
             raise Exception('Galaxy model %s unknown' % str(obssim.galaxy))
