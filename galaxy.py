@@ -695,6 +695,82 @@ class GalaxyDisc(BaseGalaxy):
         return SFR
 
 
+class GalaxyDiscFixedrd(GalaxyDisc):
+    def __init__(self, ra, dec, z, pa, inc, r_d, r_max, n_annuli, cosmo,
+                 fluxgrid):  
+        """2D Galaxy Disc model
+        
+        Create a galaxy disc model with a fixed specified geometry
+        Disc scale length is fixed
+        Model simulates a galaxy as a set of annular segments
+        
+        Parameters
+        ----------
+        ra : float
+            Right Ascention of galaxy centre [deg]
+        dec : float
+            Declination of galaxy centre [deg]
+        z : float
+            Redshift of galaxy
+        pa : float
+            postition angle of galaxy disc [deg], North=0, East=90
+        inc : float
+            inclination of galaxy disc [deg]
+        r_d : float
+            disc scale length [arcsec]
+        r_max : float
+            max radius of galaxy disc [arcsec]
+        n_annuli : int
+            number of annular bins used to describe galaxy
+        cosmo: astropy.cosmology object
+            cosmology to use, e.g. for calculating luminosity distance
+        fluxgrid : metaldisc.fluxgrid object
+            fluxgrid object specifying the line-ratio physics
+        
+        """
+       
+        super(GalaxyDiscFixedrd, self).__init__(ra, dec, z, pa, inc,
+                                            r_max, n_annuli, cosmo, fluxgrid)
+
+        #protect params from being overwritten without updating geometry
+        self._r_d = r_d
+
+    #make disc scale length readonly
+    @property
+    def r_d(self):
+        """Get disc scale length"""
+        return self._r_d
+
+    def bin_SFR(self, params):
+        """Calculate the SFR of galaxy bins
+
+        Produces an exponential SF disc
+
+        Parameters
+        ----------
+        params : dict
+            Dictionary containing the following:
+            SFRtotal : float
+                Total star formation rate of model [M_sun/yr]
+
+        Returns
+        -------
+        SFR : array of floats
+            SFR of bins [M_sun/yr]
+
+        """
+
+        try:
+            SFRtotal = params['SFRtotal']
+        except KeyError, e:
+            print "Parameter '{0}' not found".format(e.message)
+            raise
+
+        SFR = self._SFR_disc(SFRtotal, self.r_d, self.r_max)
+
+        return SFR
+
+
 class GalaxyMap(BaseGalaxy):
     def __init__(self, sfrmap, ra, dec, z, pa, inc, cosmo, fluxgrid,
             oversample=1):  

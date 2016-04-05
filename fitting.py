@@ -120,6 +120,8 @@ class MultinestFitting(object):
         self.params = OrderedDict()
         if type(obssim.galaxy) == galaxy.GalaxyDisc:
             self.init_galdisc_params()
+        elif type(obssim.galaxy) == galaxy.GalaxyDiscFixedrd:
+            self.init_galdisc_fixedrd_params()
         elif type(obssim.galaxy) == galaxy.GalaxyMap:
             self.init_galmap_params()
         else:
@@ -235,6 +237,10 @@ class MultinestFitting(object):
 
         self.params['SFRtotal'] = linear_prior(0., 100.)
         self.params['r_d'] = linear_prior(0., 2.)
+
+    def init_galdisc_fixedrd_params(self):
+
+        self.params['SFRtotal'] = linear_prior(0., 100.)
 
     def init_galmap_params(self):
 
