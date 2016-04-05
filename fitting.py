@@ -232,16 +232,16 @@ class MultinestFitting(object):
 
     def init_galdisc_params(self):
 
-        self.params['SFRtotal'] = linear_prior(0., 100.)
+        self.params['SFRtotal'] = logarithmic_prior(0.01, 100)
         self.params['r_d'] = linear_prior(0., 2.)
 
     def init_galdisc_fixedrd_params(self):
 
-        self.params['SFRtotal'] = linear_prior(0., 100.)
+        self.params['SFRtotal'] = logarithmic_prior(0.01, 100)
 
     def init_galmap_params(self):
 
-        self.params['SFRtotal'] = linear_prior(0., 100.)
+        self.params['SFRtotal'] = logarithmic_prior(0.01, 100)
     
     def init_basegal_params(self):
 
