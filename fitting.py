@@ -65,7 +65,7 @@ def logarithmic_prior(low, upp):
 class MultinestFitting(object):
 
     def __init__(self, lines, flux, var, obssim, model_err,
-            likelihood='student', **kwargs):
+            likelihood='student', dlogZ_prior_range=(-0.5, 0.5), **kwargs):
         """Fitting object for ObsSim and data
 
         Parameters
@@ -111,6 +111,8 @@ class MultinestFitting(object):
         else:
             raise Exception("likelihood function '%s' unknown" % likelihood)
         
+        self.dlogZ_prior_range = np.array(dlogZ_prior_range)
+
 
         self.obs_flux = flux
         self.obs_var = var
@@ -258,7 +260,8 @@ class MultinestFitting(object):
         logU_0_min = logU_min + 0.8 * logZ_min
 
         self.params['logZ_0'] = linear_prior(logZ_min, logZ_max)
-        self.params['dlogZ'] = linear_prior(-0.5, 0.5)
+        dlogZ_min, dlogZ_max = self.dlogZ_prior_range
+        self.params['dlogZ'] = linear_prior(dlogZ_min, dlogZ_max)
         self.params['logU_sol'] = linear_prior(logU_0_min, logU_0_max)
         self.params['tauV_0'] = linear_prior(0., 4.)
         
