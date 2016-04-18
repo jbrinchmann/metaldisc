@@ -300,15 +300,16 @@ class MultinestFitting(object):
         return model_flux, model_var
 
 
-    def multinest_run(self, basename):
+    def multinest_run(self, basename, sampling_efficiency='parameter',
+                      n_live_points=1000):
         parameters = [i for i in self.params.iterkeys()]
         n_params = len(parameters)
 
         pymultinest.run(self.multinest_loglike, self.multinest_prior, n_params,
                         outputfiles_basename=basename,
                         importance_nested_sampling=False, multimodal=True,
-                        resume=False, verbose=True, n_live_points=1000,
-                        sampling_efficiency='parameter')
+                        resume=False, verbose=True, n_live_points=n_live_points,
+                        sampling_efficiency=sampling_efficiency)
 
         # save parameter names
         json.dump(parameters, open(basename+'params.json', 'w'))
