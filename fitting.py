@@ -186,8 +186,9 @@ class MultinestFitting(object):
 
         """
 
-        res = obs_flux - model_flux
-        var = obs_var + model_var
+        mask = np.isfinite(obs_flux) # NaNs are below snr thresh
+        res = obs_flux[mask] - model_flux[mask]
+        var = obs_var[mask] + model_var[mask]
 
         dof = self.dof
 
@@ -221,8 +222,9 @@ class MultinestFitting(object):
             log-likelihood
 
         """
-        res = obs_flux - model_flux
-        var = obs_var + model_var
+        mask = np.isfinite(obs_flux)
+        res = obs_flux[mask] - model_flux[mask]
+        var = obs_var[mask] + model_var[mask]
 
         n = res.size
         out = -n/2. * np.log(2.*np.pi)
