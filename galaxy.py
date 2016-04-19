@@ -653,6 +653,39 @@ class GalaxyDisc(BaseGalaxy):
         self.bin_coord = np.column_stack([x, y])
 
 
+    def _SFR_disc(self, SFRtotal, r_d):
+        """Calculate the SFR exponential disc
+
+        Produces an exponential SF disc
+
+        Parameters
+        ----------
+        SFRtotal : float
+            Total star formation rate of model [M_sun/yr]
+        r_d : float
+            Disc scale length [arcsec]
+
+        Returns
+        -------
+        SFR : array of floats
+            SFR of bins [M_sun/yr]
+
+        """
+        r_max = self.r_max
+
+        #get central normalization of SFR
+        const = (2.*np.pi*r_d) * (r_d - (np.exp(-r_max/r_d) * (r_d+r_max)))
+        SFRdensity_0 = SFRtotal / const
+
+        #exponetial disc
+        SFRdensity = SFRdensity_0 * np.exp(-self.radius/r_d) # M_sun/yr/arcsec^2
+
+        #account for bin size
+        SFR = SFRdensity * self.bin_area # M_sun/yr
+
+        return SFR
+    
+
     def bin_SFR(self, params):
         """Calculate the SFR of galaxy bins
 
@@ -681,18 +714,10 @@ class GalaxyDisc(BaseGalaxy):
             print "Parameter '{0}' not found".format(e.message)
             raise
 
-        r_max = self.r_max
-        #get central normalization of SFR
-        const = (2.*np.pi*r_d) * (r_d - (np.exp(-r_max/r_d) * (r_d+r_max)))
-        SFRdensity_0 = SFRtotal / const
-
-        #exponetial disc
-        SFRdensity = SFRdensity_0 * np.exp(-self.radius/r_d) # M_sun/yr/arcsec^2
-
-        #account for bin size
-        SFR = SFRdensity * self.bin_area # M_sun/yr
+        SFR = self._SFR_disc(SFRtotal, r_d)
 
         return SFR
+
 
 
 class GalaxyDiscFixedrd(GalaxyDisc):
@@ -766,7 +791,7 @@ class GalaxyDiscFixedrd(GalaxyDisc):
             print "Parameter '{0}' not found".format(e.message)
             raise
 
-        SFR = self._SFR_disc(SFRtotal, self.r_d, self.r_max)
+        SFR = self._SFR_disc(SFRtotal, self.r_d)
 
         return SFR
 
