@@ -133,7 +133,7 @@ class GaussianSeeing(object):
         fwhm = self.interp_fwhm(wave)
         sigma = self.fwhm_to_sigma(fwhm)
 
-        y = self._gaussian_integral(r, sigam)
+        y = self._gaussian_integral(r, sigma)
         return y
 
 
@@ -167,25 +167,6 @@ class GaussianSeeing(object):
             raise RuntimeError("PSF is very broad") # if necessary increase upperbound in brentq function
 
         return r
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -371,19 +352,21 @@ if __name__ == '__main__':
     wave = np.array([4750., 7000., 9300.])
     fwhm = np.array([0.76, 0.66, 0.61])
     beta = np.array([2.6, 2.6, 2.6])
-    moffat = MoffatSeeing(wave, fwhm, beta)
+    seeing = MoffatSeeing(wave, fwhm, beta)
+#    seeing = GaussianSeeing(wave, fwhm)
 
     r = np.arange(0, 10., 0.01)
-    y_5000 = [moffat.flux_enclosed(i, 5000) for i in r]
-    y_7000 = [moffat.flux_enclosed(i, 7000) for i in r]
-    y_9000 = [moffat.flux_enclosed(i, 9000) for i in r]
+    y_5000 = [seeing.flux_enclosed(i, 5000) for i in r]
+    y_7000 = [seeing.flux_enclosed(i, 7000) for i in r]
+    y_9000 = [seeing.flux_enclosed(i, 9000) for i in r]
 
     plt.plot(r, y_5000, 'k')
     plt.plot(r, y_7000, 'k') 
     plt.plot(r, y_9000, 'k')
     plt.axhline(0.995)
-    plt.axvline(moffat.radius_enclosing(0.995, 5000))
-    plt.axvline(moffat.radius_enclosing(0.995, 7000))
-    plt.axvline(moffat.radius_enclosing(0.995, 9000))
+    plt.axvline(seeing.radius_enclosing(0.995, 5000))
+    plt.axvline(seeing.radius_enclosing(0.995, 7000))
+    plt.axvline(seeing.radius_enclosing(0.995, 9000))
+
     plt.show()
     
