@@ -2,7 +2,22 @@ import numpy as np
 from scipy.interpolate import interp1d
 from scipy.optimize import brentq
 
-class GaussianSeeing(object):
+class CircularPSF(object):
+
+    def __call__(self, r, wave):
+        """Calcualate the PSF at a given radii and wavelength"""
+
+        msg = "Method '__call__' not implemented in class {0}".format(self.__class__)
+        raise NotImplementedError(msg)
+
+    def radius_enclosing(self, fraction, wave):
+        """Calculate radius that encloses a given fraction of total flux"""
+
+        msg = "Method 'radius_enclosing' not implemented in class {0}".format(self.__class__)
+        raise NotImplementedError(msg)
+
+
+class GaussianSeeing(CircularPSF):
 
     def __init__(self, wave, fwhm):
 
@@ -25,7 +40,7 @@ class GaussianSeeing(object):
 
 
     def __call__(self, r, wave):
-        """Calcualate the Moffat PSF at a given radii and wavelength
+        """Calcualate the Gaussian PSF at a given radii and wavelength
         
         Parameters
         ----------
@@ -105,7 +120,7 @@ class GaussianSeeing(object):
         Returns
         -------
         y : array of floats
-            integrated Moffat function from r=0 to r=radius
+            integrated Gaussian function from r=0 to r=radius
 
         """
     
@@ -171,7 +186,7 @@ class GaussianSeeing(object):
 
 
 
-class MoffatSeeing(object):
+class MoffatSeeing(CircularPSF):
     def __init__(self, wave, fwhm, beta):
         """Moffat point spread function
 

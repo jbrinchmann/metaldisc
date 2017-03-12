@@ -58,7 +58,8 @@ class BaseObsSim(object):
     def pixel_id(self):
         """Array of image pixel id numbers"""
         if self.__pixel_id is None:
-            raise NotImplementedError("Subclasses should provide pixel_id attribute")
+            msg = "Attribute 'pixel_id' not implemented in class {0}".format(self.__class__)
+            raise NotImplementedError(msg)
         else:
             return self.__pixel_id
 
@@ -70,7 +71,8 @@ class BaseObsSim(object):
     def pixel_area(self):
         """Array of image pixel areas [arcsec^2]"""
         if self.__pixel_area is None:
-            raise NotImplementedError("Subclasses should provide pixel_area attribute")
+            msg = "Attribute 'pixel_area' not implemented in class {0}".format(self.__class__)
+            raise NotImplementedError(msg)
         else:
             return self.__pixel_area
 
@@ -84,7 +86,8 @@ class BaseObsSim(object):
     def pixel_coord(self):
         """Get Nx2 array relative image pixel coords (for N pixels) [arcsec]"""
         if self.__pixel_coord is None:
-            raise NotImplementedError("Subclasses should provide bin_coord attribute")
+            msg = "Attribute 'pixel_coord' not implemented in class {0}".format(self.__class__)
+            raise NotImplementedError(msg)
         else:
             return self.__pixel_coord
 
@@ -99,7 +102,8 @@ class BaseObsSim(object):
     def pixel_coord_tree(self):
         """Get scipy.cKDTree representation of pixel_coord"""
         if self.__pixel_coord_tree is None:
-            raise NotImplementedError("Subclasses should provide pixel_coord attribute")
+            msg = "Attribute 'pixel_coord' not implemented in class {0}".format(self.__class__)
+            raise NotImplementedError(msg)
         else:
             return self.__pixel_coord_tree
 
