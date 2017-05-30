@@ -109,7 +109,7 @@ class FluxGrid(object):
             if idx.size >= 2:
                 raise Exception('Line {0} found more than once'.format(line))
 
-            data[:,:,i_line] = dset[:,:,idx]
+            data[:,:,i_line] = np.squeeze(dset[:,:,idx])
         return dims, data
 
 
