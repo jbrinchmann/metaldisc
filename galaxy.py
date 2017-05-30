@@ -883,6 +883,7 @@ class GalaxyMap(BaseGalaxy):
         y = y[mask]
         area = area[mask]
         self.__SFR = SFR[mask] #store SFR
+        self.__SFR /= np.sum(self.__SFR) #normalize SFR to 1
         
         #store map coords and pixel area
         self.x = x
@@ -922,8 +923,7 @@ class GalaxyMap(BaseGalaxy):
             print "Parameter '{0}' not found".format(e.message)
             raise
         
-        SFR = self.__SFR
-        SFR *= (SFRtotal / np.sum(SFR))
+        SFR = self.__SFR * SFRtotal
         
         return SFR
 
