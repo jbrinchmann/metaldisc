@@ -17,13 +17,62 @@ class CircularPSF(object):
         raise NotImplementedError(msg)
 
 
+class EllipticalPSF(object):
+
+    def __call__(self, dx, dy, wave):
+        """Calcualate the PSF at a given distance and wavelength"""
+
+        msg = "Method '__call__' not implemented in class {0}".format(self.__class__)
+        raise NotImplementedError(msg)
+
+    def dist_enclosing(self, fraction, wave):
+        """Calculate distance that encloses a given fraction of total flux"""
+
+        msg = "Method 'dist_enclosing' not implemented in class {0}".format(self.__class__)
+        raise NotImplementedError(msg)
+
+
+class VariablePSF(object):
+
+    def __call__(self, dx, dy, x0, y0, wave):
+        """Calcualate the PSF at a given distance, position and wavelength"""
+
+        msg = "Method '__call__' not implemented in class {0}".format(self.__class__)
+        raise NotImplementedError(msg)
+
+    def dist_enclosing(self, fraction, x0, y0, wave):
+        """Calculate distance that encloses a given fraction of total flux at a given position"""
+
+        msg = "Method 'dist_enclosing' not implemented in class {0}".format(self.__class__)
+        raise NotImplementedError(msg)
+
+
+def fwhm_to_sigma(fwhm):
+    """Convert FWHM to standard deviation
+    
+    Parameters
+    ----------
+    fwhm : float
+        Full-Width Half Max
+
+    Returns
+    -------
+    sigma : float
+        Standard deviation of Gaussian
+
+    """
+    sigma = fwhm / (2. * np.sqrt(2. * np.log(2.)))
+    return sigma
+
+
 class GaussianSeeing(CircularPSF):
 
     def __init__(self, wave, fwhm):
 
         """Gaussian point spread function
 
-        Performs linear interpolation of FWHM parameter as a function of wavelength
+        Performs linear interpolation of FWHM parameter as a function of
+        wavelength
 
         Parameters
         ----------
@@ -57,29 +106,13 @@ class GaussianSeeing(CircularPSF):
         """
 
         fwhm = self.interp_fwhm(wave)
-        sigma = self.fwhm_to_sigma(fwhm)
+        sigma = fwhm_to_sigma(fwhm)
 
         profile = self._gaussian_func(r, sigma)
         return profile
 
 
     @staticmethod
-    def fwhm_to_sigma(fwhm):
-        """Convert FWHM to standard deviation
-        
-        Parameters
-        ----------
-        fwhm : float
-            Full-Width Half Max
-
-        Returns
-        -------
-        sigma : float
-            Standard deviation of Gaussian
-
-        """
-        sigma = fwhm / (2. * np.sqrt(2. * np.log(2.)))
-        return sigma
 
 
     @staticmethod
@@ -146,7 +179,7 @@ class GaussianSeeing(CircularPSF):
         """
 
         fwhm = self.interp_fwhm(wave)
-        sigma = self.fwhm_to_sigma(fwhm)
+        sigma = fwhm_to_sigma(fwhm)
 
         y = self._gaussian_integral(r, sigma)
         return y
@@ -172,7 +205,7 @@ class GaussianSeeing(CircularPSF):
 
         """
         fwhm = self.interp_fwhm(wave)
-        sigma = self.fwhm_to_sigma(fwhm)
+        sigma = fwhm_to_sigma(fwhm)
         
         f = lambda r, sigma, x: self._gaussian_integral(r,sigma) - x
         
@@ -184,13 +217,12 @@ class GaussianSeeing(CircularPSF):
         return r
 
 
-
-
 class MoffatSeeing(CircularPSF):
     def __init__(self, wave, fwhm, beta):
         """Moffat point spread function
 
-        Performs linear interpolation of FWHM and Beta parameters as a function of wavelength
+        Performs linear interpolation of FWHM and Beta parameters as a function
+        of wavelength
 
         Parameters
         ----------
@@ -360,6 +392,184 @@ class MoffatSeeing(CircularPSF):
 
         return r
 
+
+class EllipticalGaussianSeeing(EllipticalPSF):
+
+    def __init__(self, wave, fwhm_a, fwhm_b, pa):
+
+        """Gaussian point spread function
+
+        Performs linear interpolation of FWHM parameter as a function of
+        wavelength
+
+        Parameters
+        ----------
+        wave : array of floats
+            wavelength [Angstrom], independent varible for interpolation
+        fwhm_a : array of floats
+            major axis full-width half max [arcsec], dependent varible for
+            interpolation
+        fwhm_b : array of floats
+            minor axis full-width half max [arcsec], dependent varible for
+            interpolation
+        pa : array of floats
+            position angle of major axis (North = 0, East = 90) [degrees],
+            dependent varible for interpolation
+        
+        """
+        self.wave = wave
+        self.fwhm_a = fwhm_a
+        self.fwhm_b = fwhm_b
+        self.pa = pa
+    
+        self.interp_fwhm_a = interp1d(self.wave, self.fwhm_a, copy=True)
+        self.interp_fwhm_b = interp1d(self.wave, self.fwhm_b, copy=True)
+        self.interp_pa = interp1d(self.wave, self.pa, copy=True)
+
+
+    def __call__(self, dx, dy, wave):
+        """Calcualate the Gaussian PSF at a given radii and wavelength
+        
+        Parameters
+        ----------
+        dx : array of floats
+            x-axis displacement [arcsec]
+        dy : array of floats
+            y-axis displacement [arcsec]
+        wave : float
+            wavelength [Angstrom]
+
+        Returns
+        -------
+        profile : array of floats
+            Normalized PSF computed at each radius
+
+        """
+
+        fwhm_a = self.interp_fwhm_a(wave)
+        fwhm_b = self.interp_fwhm_b(wave)
+        pa = self.interp_pa(wave)
+
+        sigma_a = fwhm_to_sigma(fwhm)
+        sigma_b = fwhm_to_sigma(fwhm)
+
+        profile = self._gaussian_func(dx, dy, sigma_a, sigma_b, pa)
+        return profile
+
+
+    @staticmethod
+    def _gaussian_func(dx, dy, sigma_a, sigma_b, pa):
+        """Gaussian function
+
+        Parameters
+        ----------
+        dx : array of floats
+            x-axis displacement
+        dy : array of floats
+            y-axis displacement
+        sigma_a : float
+            major axis standard deviation
+        sigma_b : float
+            minor axis standard deviation
+        pa : float
+            position angle of major axis
+            
+
+        Returns
+        -------
+        y : array of floats
+            Gaussian function at each radius
+
+        """
+
+        theta = np.radians(90. + pa)
+        da = dx * np.cos(theta) - dy * np.sin(theta)
+        db = dx * np.sin(theta) + dy * np.cos(theta)
+
+        norm_a = 1. / (2. * np.pi * sigma_a**2.)
+        norm_b = 1. / (2. * np.pi * sigma_b**2.)
+        y = (norm_a * norm_b *
+             np.exp(-0.5 * ((da/sigma_a)**2. + (db/sigma_b)**2.)))
+
+        return y
+
+
+    @staticmethod
+    def _gaussian_integral(r, sigma):
+        """2D polar integral of Gaussian function
+
+        Parameters
+        ----------
+        r : array of floats
+            radius
+        sigma : float
+            Standard deviation
+
+        Returns
+        -------
+        y : array of floats
+            integrated Gaussian function from r=0 to r=radius
+
+        """
+    
+        y =  1. - np.exp(-0.5 * (r/sigma)**2.)
+
+        return y
+
+
+    def flux_enclosed(self, r, wave):
+        """Calculate PSF enclosed within a given radius
+        
+        Parameters
+        ----------
+        r : float
+            radius
+        wave : float
+            wavelength
+
+        Returns
+        -------
+        y : fraction of flux enclosed (total = 1)
+
+        """
+
+        fwhm = self.interp_fwhm(wave)
+        sigma = fwhm_to_sigma(fwhm)
+
+        y = self._gaussian_integral(r, sigma)
+        return y
+
+
+    def radius_enclosing(self, fraction, wave):
+        """Calculate radius that encloses a given fraction of total flux
+        
+        Parameters
+        ----------
+        fraction : float
+            fraction of flux enclosed (normalized to 1)
+        wave : float
+            wavelength
+
+        Returns
+        -------
+        r : radius enclosing a given fraction of flux
+
+        Raises
+        ------
+        RuntimeError : if enlosed radius is very large
+
+        """
+        fwhm = self.interp_fwhm(wave)
+        sigma = fwhm_to_sigma(fwhm)
+        
+        f = lambda r, sigma, x: self._gaussian_integral(r,sigma) - x
+        
+        try:
+            r = brentq(f, 0., 20., args=(sigma, fraction))
+        except ValueError:
+            raise RuntimeError("PSF is very broad") # if necessary increase upperbound in brentq function
+
+        return r
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
