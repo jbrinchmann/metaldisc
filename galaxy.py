@@ -75,7 +75,8 @@ class BaseGalaxy(object):
     def radius(self):
         """Radius of galaxy bins in plane of disc [arcsec]"""
         if self.__radius is None:
-            raise NotImplementedError("Subclasses should provide radius attribute")
+            msg = "Attrubute 'radius' not implemented in class {0}".format(self.__class__)
+            raise NotImplementedError(msg)
         else:
             return self.__radius
 
@@ -88,7 +89,8 @@ class BaseGalaxy(object):
     def theta(self):
         """Azimuthal angle of galaxy bins in plane of disc [radians]"""
         if self.__theta is None:
-            raise NotImplementedError("Subclasses should provide theta attribute")
+            msg = "Attrubute 'theta' not implemented in class {0}".format(self.__class__)
+            raise NotImplementedError(msg)
         else:
             return self.__theta
 
@@ -101,7 +103,8 @@ class BaseGalaxy(object):
     def disc_x(self):
         """Get x coord of galaxy bins in plane of disc [arcsec]"""
         if self.__disc_x is None:
-            raise NotImplementedError("Subclasses should provide disc_x attribute")
+            msg = "Attrubute 'disc_x' not implemented in class {0}".format(self.__class__)
+            raise NotImplementedError(msg)
         else:
             return self.__disc_x
 
@@ -114,7 +117,8 @@ class BaseGalaxy(object):
     def disc_y(self):
         """y coord of galaxy bins in plane of disc [arcsec]"""
         if self.__disc_y is None:
-            raise NotImplementedError("Subclasses should provide disc_y attribute")
+            msg = "Attrubute 'disc_y' not implemented in class {0}".format(self.__class__)
+            raise NotImplementedError(msg)
         else:
             return self.__disc_y
 
@@ -126,7 +130,8 @@ class BaseGalaxy(object):
     def bin_area(self):
         """Array of galaxy sample bins areas [arcsec^2]"""
         if self.__bin_area is None:
-            raise NotImplementedError("Subclasses should provide bin_area attribute")
+            msg = "Attrubute 'bin_area' not implemented in class {0}".format(self.__class__)
+            raise NotImplementedError(msg)
         else:
             return self.__bin_area
 
@@ -140,7 +145,8 @@ class BaseGalaxy(object):
     def bin_coord(self):
         """Get Nx2 array galaxy sample coords (for N bins) [arcsec]"""
         if self.__bin_coord is None:
-            raise NotImplementedError("Subclasses should provide bin_coord attribute")
+            msg = "Attrubute 'bin_coord' not implemented in class {0}".format(self.__class__)
+            raise NotImplementedError(msg)
         else:
             return self.__bin_coord
 
@@ -156,7 +162,8 @@ class BaseGalaxy(object):
     def bin_coord_tree(self):
         """Get scipy.cKDTree representation of bin_coord"""
         if self.__bin_coord_tree is None:
-            raise NotImplementedError("Subclasses should provide bin_coord attribute")
+            msg = "Attrubute 'bin_coord' not implemented in class {0}".format(self.__class__)
+            raise NotImplementedError(msg)
         else:
             return self.__bin_coord_tree
 
@@ -268,7 +275,8 @@ class BaseGalaxy(object):
 
     def bin_SFR(self, params):
         """Return SFR of galaxy bins [M_sun/yr]"""
-        raise NotImplementedError("Subclasses should provide bin_SFR method")
+        msg = "Method 'bin_SFR' not implemented in class {0}".format(self.__class__)
+        raise NotImplementedError(msg)
 
 
     def _bin_logZ(self, params):
@@ -928,6 +936,59 @@ class GalaxyMap(BaseGalaxy):
         return SFR
 
 
+class GalaxyPointSource(BaseGalaxy):
+    def __init__(self, ra, dec, z, cosmo, fluxgrid):
+        """Point source galaxy model, primarily used for testing
+        
+        Create a galaxy disc model which is a point source
+        
+        Parameters
+        ----------
+        ra : float
+            Right Ascention of galaxy centre [deg]
+        dec : float
+            Declination of galaxy centre [deg]
+        z : float
+            Redshift of galaxy
+        cosmo: astropy.cosmology object
+            cosmology to use, e.g. for calculating luminosity distance
+        fluxgrid : metaldisc.fluxgrid object
+            fluxgrid object specifying the line-ratio physics
+        
+        """
+
+        super(GalaxyPointSource, self).__init__(ra, dec, z, cosmo, fluxgrid)
+
+        self.radius = np.array([0.])
+        self.bin_coord = np.array([[0., 0.]])
+
+
+    def bin_SFR(self, params):
+        """Calculate the SFR of galaxy bins for a point source
+
+        Parameters
+        ----------
+        params : dict
+            Dictionary containing the following:
+            SFRtotal : float
+                Total star formation rate of model [M_sun/yr]
+
+        Returns
+        -------
+        SFR : array of floats
+            SFR of bins [M_sun/yr]
+
+        """
+
+        try:
+            SFRtotal = params['SFRtotal']
+        except KeyError, e:
+            print "Parameter '{0}' not found".format(e.message)
+            raise
+        
+        SFR = np.array([SFRtotal])
+        
+        return SFR
 
 
 if __name__ == '__main__':
