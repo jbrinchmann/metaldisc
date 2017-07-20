@@ -4,6 +4,7 @@ from scipy.spatial import cKDTree
 from astropy import constants as const
 from astropy import units
 
+from seeing import CircularPSF, NonCircularPSF
 import wcs_utils
 
     
@@ -171,9 +172,40 @@ class BaseObsSim(object):
         map_flux = self.pixel_coord_tree.sparse_distance_matrix(
                          self.galaxy.bin_coord_tree, maxdist)
         map_flux = map_flux.tocsr()
+        map_flux.sort_indices()
 
-        #calc PSF at distances
-        map_flux.data[:] = self.seeing(map_flux.data, wave)
+        if isinstance(self.seeing, CircularPSF):
+            #calc PSF at radii
+            r = map_flux.data
+            y = self.seeing(r, wave)
+
+        elif isinstance(self.seeing, NonCircularPSF):
+            #calc PSF at x, y pos
+            
+            #get indicies works for csr and csc matrices
+            major_dim, minor_dim = map_flux._swap(map_flux.shape)
+            minor_indices = map_flux.indices
+            major_indices = np.empty(len(minor_indices),
+                                dtype=map_flux.indices.dtype)
+            sparse._sparsetools.expandptr(major_dim, map_flux.indptr,
+                                    major_indices)
+            idx_pix, idx_gal_bin = map_flux._swap(
+                                        (major_indices, minor_indices))
+
+            dist = (self.pixel_coord[idx_pix] -
+                    self.galaxy.bin_coord[idx_gal_bin])
+                
+            dx = dist[:,0]
+            dy = dist[:,1]
+            y = self.seeing(dx, dy, wave)
+
+        else:
+            msg = ("PSF {0} not supported, must be subclass of "
+                   "CircularPSF or EllipticalPSF")
+            msg = msg.format(self.seeing.__class__)
+            raise Exception(msg)
+
+        map_flux.data[:] = y
 
         return map_flux
 

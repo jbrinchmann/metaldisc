@@ -936,6 +936,59 @@ class GalaxyMap(BaseGalaxy):
         return SFR
 
 
+class GalaxyPointSource(BaseGalaxy):
+    def __init__(self, ra, dec, z, cosmo, fluxgrid):
+        """Point source galaxy model, primarily used for testing
+        
+        Create a galaxy disc model which is a point source
+        
+        Parameters
+        ----------
+        ra : float
+            Right Ascention of galaxy centre [deg]
+        dec : float
+            Declination of galaxy centre [deg]
+        z : float
+            Redshift of galaxy
+        cosmo: astropy.cosmology object
+            cosmology to use, e.g. for calculating luminosity distance
+        fluxgrid : metaldisc.fluxgrid object
+            fluxgrid object specifying the line-ratio physics
+        
+        """
+
+        super(GalaxyPointSource, self).__init__(ra, dec, z, cosmo, fluxgrid)
+
+        self.radius = np.array([0.])
+        self.bin_coord = np.array([[0., 0.]])
+
+
+    def bin_SFR(self, params):
+        """Calculate the SFR of galaxy bins for a point source
+
+        Parameters
+        ----------
+        params : dict
+            Dictionary containing the following:
+            SFRtotal : float
+                Total star formation rate of model [M_sun/yr]
+
+        Returns
+        -------
+        SFR : array of floats
+            SFR of bins [M_sun/yr]
+
+        """
+
+        try:
+            SFRtotal = params['SFRtotal']
+        except KeyError, e:
+            print "Parameter '{0}' not found".format(e.message)
+            raise
+        
+        SFR = np.array([SFRtotal])
+        
+        return SFR
 
 
 if __name__ == '__main__':
