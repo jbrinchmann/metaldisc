@@ -1,15 +1,5 @@
 import numpy as np
 
-import matplotlib as mpl
-params = {
-        'text.usetex': True,
-        'font.size': 8,
-        }
-mpl.rcParams.update(params)
-import matplotlib.pyplot as plt
-from matplotlib import gridspec
-from matplotlib import patches
-
 from astropy.io import fits
 from astropy.cosmology import FlatLambdaCDM
 
@@ -119,42 +109,6 @@ def init_fitter(file_, obssim):
 
     return fitter
 
-    
-
-
-def plot_results(file_, model_flux):
-
-    lines = [r'$[\textrm{OII}]3726,3729$', r'$\textrm{H}\gamma$',
-             r'$\textrm{H}\gamma$', r'$[\textrm{OIII}]5007$']
-    n_lines = len(lines)
-    fig = plt.figure(figsize=[4.,2.*n_lines], tight_layout=True)
-    gs = gridspec.GridSpec(n_lines, 2)
-
-    axes = np.full([n_lines,2], None, dtype=object)
-    for i_line in xrange(n_lines):
-        ax1 = fig.add_subplot(gs[i_line,0], axisbg='0.8')
-        ax2 = fig.add_subplot(gs[i_line,1], axisbg='0.8')
-
-        axes[i_line] = ax1, ax2
-    
-
-    for i_line in xrange(n_lines):
-        ax1, ax2 = axes[i_line]
-
-        text = lines[i_line]
-        ax1.text(0.05, 0.05, text, va='bottom', ha='left',
-                 transform=ax1.transAxes)
-
-        text = r'$\textrm{Observed}$'
-        ax1.text(0.95, 0.95, text, va='top', ha='right',
-                 transform=ax1.transAxes)
-
-        text = r'$\textrm{Model}$'
-        ax2.text(0.95, 0.95, text, va='top', ha='right',
-                 transform=ax2.transAxes)
-
-    
-    return fig
 
 
 if __name__ == '__main__':
@@ -177,6 +131,11 @@ if __name__ == '__main__':
     sampling_efficiency = 1.0 #0.3 -- 0.8 would be more sensible choices
     n_live_points = 100       #>500 would be more a sensible choice
 
+    #create output directory if needed
+    try:
+        os.mkdir('out')
+    except OSError:
+        pass
     fitter.multinest_run('out/0-', sampling_efficiency=sampling_efficiency,
                          n_live_points=n_live_points)
 
