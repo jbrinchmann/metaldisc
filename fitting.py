@@ -4,9 +4,6 @@ import json
 import numpy as np
 from scipy.special import gammaln
 
-import matplotlib.pyplot as plt
-from matplotlib import gridspec
-
 import pymultinest
 
 import galaxy
@@ -65,15 +62,15 @@ def logarithmic_prior(low, upp):
 class MultinestFitting(object):
 
     def __init__(self, lines, flux, var, obssim, model_err,
-            likelihood='student', dlogZ_prior_range=(-0.5, 0.5), **kwargs):
+            likelihood='student', dlogZ_prior_range=(-0.3, 0.3), **kwargs):
         """Fitting object for ObsSim and data
 
         Parameters
         ----------
         lines : list of strings
-            list of strings identifing emission lines
-            lines to be coadded should be nested in a 2nd list
-            e.g. lines = [['O2-3727', 'O2-3729'], 'Hg', 'Hb', 'O3-5007']
+            nested list of strings identifing emission lines
+            e.g. lines = [['O2-3727', 'O2-3729'], ['Hg'], ['Hb'], ['O3-5007']]
+            here 'O2-3727', 'O2-3729' will be coadded
         flux : (Nbins*Nlines) array of floats
             line fluxes in [10^-20 erg/s/cm^2], Nlines = len(lines)
         var : (Nbins*Nlines) array of floats
@@ -303,14 +300,15 @@ class MultinestFitting(object):
 
 
     def multinest_run(self, basename, sampling_efficiency='parameter',
-                      n_live_points=1000):
+                      n_live_points=1000, verbose=True):
         parameters = [i for i in self.params.iterkeys()]
         n_params = len(parameters)
 
         pymultinest.run(self.multinest_loglike, self.multinest_prior, n_params,
                         outputfiles_basename=basename,
                         importance_nested_sampling=False, multimodal=True,
-                        resume=False, verbose=True, n_live_points=n_live_points,
+                        resume=False, verbose=verbose,
+                        n_live_points=n_live_points,
                         sampling_efficiency=sampling_efficiency)
 
         # save parameter names

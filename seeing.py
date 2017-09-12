@@ -459,9 +459,9 @@ class MoffatPSF(CircularPSF):
     def _get_args(self, wave):
 
         fwhm = self.interp_fwhm(wave)
-        alpha = self.moffat_fwhm_to_alpha(fwhm, beta)
-
         beta = self.interp_beta(wave)
+
+        alpha = moffat_fwhm_to_alpha(fwhm, beta)
 
         args = (alpha, beta)
 
