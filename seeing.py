@@ -601,30 +601,3 @@ class EllipticalGaussianPSF(NonCircularPSF):
              np.exp(-0.5 * ((da/sigma_a)**2. + (db/sigma_b)**2.)))
 
         return y
-
-
-
-if __name__ == '__main__':
-    import matplotlib.pyplot as plt
-
-    wave = np.array([4750., 7000., 9300.])
-    fwhm = np.array([0.76, 0.66, 0.61])
-    beta = np.array([2.6, 2.6, 2.6])
-    seeing = MoffatSeeing(wave, fwhm, beta)
-#    seeing = GaussianSeeing(wave, fwhm)
-
-    r = np.arange(0, 10., 0.01)
-    y_5000 = [seeing.flux_enclosed(i, 5000) for i in r]
-    y_7000 = [seeing.flux_enclosed(i, 7000) for i in r]
-    y_9000 = [seeing.flux_enclosed(i, 9000) for i in r]
-
-    plt.plot(r, y_5000, 'k')
-    plt.plot(r, y_7000, 'k') 
-    plt.plot(r, y_9000, 'k')
-    plt.axhline(0.995)
-    plt.axvline(seeing.radius_enclosing(0.995, 5000))
-    plt.axvline(seeing.radius_enclosing(0.995, 7000))
-    plt.axvline(seeing.radius_enclosing(0.995, 9000))
-
-    plt.show()
-    
