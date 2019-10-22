@@ -989,34 +989,3 @@ class GalaxyPointSource(BaseGalaxy):
         SFR = np.array([SFRtotal])
         
         return SFR
-
-
-if __name__ == '__main__':
-    
-    from astropy.cosmology import FlatLambdaCDM
-    cosmo = FlatLambdaCDM(H0=70., Om0=0.3)
-    from fluxgrid import FluxGrid
-    lines = ['O2-3727', 'O2-3729', 'O3-5007']
-    fluxgrid = FluxGrid('grids/grid_Dopita13_kappa=inf.h5', lines, 0.04)
-    gal = GalaxyDisc(338.24124, -60.563644, 0.427548, 15., 85., 3., 45, cosmo, fluxgrid)
-
-    params = {
-            'SFRtotal': 1.,
-            'r_d': 0.5,
-            'Z_in': 9.0,
-            'Z_out': 8.9,
-            'logU_0': -3.,
-            'tauV_in': 0.2,
-            'tauV_out': 0.1,
-            }
-
-    flux = gal(lines, params)
-    logZ, logU = gal.bin_logZ_logU(params)
-    tauV = gal._bin_tauV(params)
-    coords = gal.bin_coord
-
-    import matplotlib.pyplot as plt
-    plt.scatter(coords[:,0], coords[:,1], c=flux[:,2])
-    plt.colorbar()
-    
-    plt.show()
