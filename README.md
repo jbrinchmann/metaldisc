@@ -27,14 +27,17 @@ code currently requires
 * `h5py`
 * `astropy`
 
-and it is advisable to also install `getdist` for visualisation.
+and it is advisable to also install `getdist` for visualisation and
+`jupyter` to use the notebooks.
 
 If you use `conda`, a possible installation method would be
 
 ```
-  > conda create -n metaldisc  numpy scipy pymultinest h5py astropy  getdist pip
+  > conda create -n metaldisc  numpy scipy h5py astropy jupyter pip
    <... Various output ...>
   > conda activate metaldisc
+  > pip install pymultinest
+  > pip install getdist
   > git clone https://github.com/jbrinchmann/metaldisc.git
   > cd metaldisc
   > pip install . 
@@ -42,6 +45,8 @@ If you use `conda`, a possible installation method would be
   > pip install -e . 
 ```
 
+Note in particular that `pymultinest` and `getdist` are most easily
+installed using `pip` so that is what is indicated here.
 
 ## Examples of use
 
