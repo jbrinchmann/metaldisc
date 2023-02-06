@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import numpy as np
 
 from astropy.io import fits
@@ -8,7 +9,7 @@ from metaldisc.galaxy import GalaxyMap
 from metaldisc.seeing import MoffatPSF
 from metaldisc.obssim import BinmapObsSim, ImageObsSim
 from metaldisc.fitting import MultinestFitting
-
+import os
 
 def init_fluxgrid():
     """Initialize emission-line model instance"""

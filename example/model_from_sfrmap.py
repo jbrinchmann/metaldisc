@@ -1,6 +1,8 @@
+from __future__ import absolute_import
 import numpy as np
 
 import matplotlib as mpl
+from six.moves import range
 params = {
         'text.usetex': True,
         'font.size': 8,
@@ -87,7 +89,7 @@ def init_obssim(file_, galaxy, seeing):
 
 def contruct_image(flux, binmap):
     im = np.full_like(binmap, np.nan, dtype=float)
-    for i_bin in xrange(len(flux)):
+    for i_bin in range(len(flux)):
         mask = binmap == (i_bin + 1)
         im[mask] = flux[i_bin]
 
@@ -109,7 +111,7 @@ def plot_results(file_, model_flux):
     gs = gridspec.GridSpec(n_lines, 2)
 
     axes = np.full([n_lines,2], None, dtype=object)
-    for i_line in xrange(n_lines):
+    for i_line in range(n_lines):
         ax1 = fig.add_subplot(gs[i_line,0], facecolor='0.8')
         ax2 = fig.add_subplot(gs[i_line,1], facecolor='0.8')
 
@@ -123,7 +125,7 @@ def plot_results(file_, model_flux):
     model_flux_coadd[:,0] += model_flux[:,1]
     model_flux_coadd[:,1:] = model_flux[:,2:]
 
-    for i_line in xrange(n_lines):
+    for i_line in range(n_lines):
         ax1, ax2 = axes[i_line]
 
         obs_im = contruct_image(obs_flux[:,i_line], binmap)
