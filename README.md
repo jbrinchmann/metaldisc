@@ -27,13 +27,14 @@ code currently requires
 * `h5py`
 * `astropy`
 
-and it is advisable to also install `getdist` for visualisation and
-`jupyter` to use the notebooks.
+and it is advisable to also install `matplotlib` and `getdist` for visualisation and
+`jupyter` to use the notebooks and `nbconvert` to ensure the notebook
+is possible to run on other installations.
 
 If you use `conda`, a possible installation method would be
 
 ```
-  > conda create -n metaldisc  numpy scipy h5py astropy jupyter pip
+  > conda create -n metaldisc  matplotlib numpy scipy h5py astropy  jupyter nbconvert pip
    <... Various output ...>
   > conda activate metaldisc
   > pip install pymultinest
