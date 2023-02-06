@@ -1,0 +1,8 @@
+[project]
+name = "metaldisc"
+version = "1.0"
+description="Modeling of resolved galaxies"
+authors=[{name = "David Carton"},]
+dependencies = [
+	     'numpy', 'scipy', 'pymultinest', 'h5py', 'astropy'
+]
